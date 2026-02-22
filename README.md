@@ -36,16 +36,21 @@ A mobile astrology app built on Solana Mobile, offering personalized 八字, 紫
 - **Backend:** yun astrology engine (TypeScript)
 - **Payments:** SOL tokens
 
-## 💰 Beta Pricing
+## 🏷️ Pricing Strategy
 
+### Free Tier (User Acquisition)
+- **1 FREE reading every day!** 🎁
+- No wallet required for basic readings
+- Unlimited users = viral growth
+
+### Premium (Monetization)
 | Feature | Price (SOL) |
 |---------|-------------|
-| Single Question | 0.005 |
-| Quick Reading | 0.01 |
-| Full Chart | 0.05 |
-| Unlimited Day | 0.1 |
+| Extra Daily Reading | 0.005 |
+| Full Chart | 0.01 |
+| Unlimited Day Pass | 0.05 |
 
-**Points:** Earn 1-25 points per purchase
+**Points System:** Earn 1-5 points per purchase, 1 point = 0.001 SOL discount
 
 ## 🔗 Links
 

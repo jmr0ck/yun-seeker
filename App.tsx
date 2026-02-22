@@ -32,6 +32,8 @@ export default function App() {
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [points, setPoints] = useState(0);
+  const [lastFreeRequest, setLastFreeRequest] = useState<Date | null>(null);
+  const [todayFreeUsed, setTodayFreeUsed] = useState(false);
   
   // Form state
   const [birthDate, setBirthDate] = useState('');
@@ -44,6 +46,16 @@ export default function App() {
   const [reading, setReading] = useState<any>(null);
   const [question, setQuestion] = useState('');
 
+  // Check if free daily request is available
+  const canUseFreeRequest = () => {
+    const now = new Date();
+    if (!lastFreeRequest) return true;
+    
+    const lastDate = new Date(lastFreeRequest);
+    const isSameDay = now.toDateString() === lastDate.toDateString();
+    return !isSameDay;
+  };
+
   // Mock wallet connection (replace with real Solana Mobile SDK)
   const connectWallet = async () => {
     // In production: use @solana/mobile-wallet-adapter
@@ -51,7 +63,7 @@ export default function App() {
     setWalletConnected(true);
     setWalletAddress('7xKXtg2CW87d97TXJSDpbD5iBk8RV1fYSErQQN7G4BQ'); // Demo address
     setPoints(10); // Welcome bonus
-    Alert.alert('Wallet Connected!', 'Welcome to 運 yun! 🎉');
+    Alert.alert('Wallet Connected!', 'Welcome to 運 yun! 🎉\n\n🎁 You get 1 FREE reading every day!');
   };
 
   const disconnectWallet = () => {
@@ -64,6 +76,15 @@ export default function App() {
     if (!birthDate) {
       Alert.alert('Setup Required', 'Please enter your birth details first!');
       setCurrentScreen('profile');
+      return;
+    }
+
+    // Check for free daily request
+    const freeAvailable = canUseFreeRequest();
+    const isFreeReading = type === 'lottery'; // Lottery is always free
+    
+    if (!isFreeReading && !freeAvailable) {
+      Alert.alert('Daily Free Used!', 'Come back tomorrow for another free reading!\n\nOr connect wallet to unlock more.');
       return;
     }
 
@@ -97,8 +118,14 @@ export default function App() {
           result = { answer: 'The stars align in your favor.' };
       }
       
-      setReading({ type, data: result });
+      setReading({ type, data: result, isFree: isFreeReading || freeAvailable });
       setCurrentScreen('reading');
+      
+      // Update free request tracker
+      if (freeAvailable && !isFreeReading) {
+        setLastFreeRequest(new Date());
+        setTodayFreeUsed(true);
+      }
     } catch (e) {
       Alert.alert('Error', 'Could not generate reading. Please check your birth data.');
     }
@@ -111,6 +138,7 @@ export default function App() {
         <Text style={styles.heroTitle}>運</Text>
         <Text style={styles.heroSubtitle}>Chinese Astrology on Solana</Text>
         <Text style={styles.heroTagline}>3,000 years of wisdom</Text>
+        <Text style={styles.freeTag}>🎁 1 FREE reading every day!</Text>
       </View>
 
       {!walletConnected ? (
@@ -128,31 +156,31 @@ export default function App() {
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('chart')}>
           <Text style={styles.menuIcon}>🎂</Text>
           <Text style={styles.menuText}>Birth Chart</Text>
-          <Text style={styles.menuPrice}>0.05 SOL</Text>
+          <Text style={styles.menuPrice}>🎁 FREE daily</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('question')}>
           <Text style={styles.menuIcon}>🔮</Text>
           <Text style={styles.menuText}>Ask Question</Text>
-          <Text style={styles.menuPrice}>0.005 SOL</Text>
+          <Text style={styles.menuPrice}>🎁 FREE daily</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('love')}>
           <Text style={styles.menuIcon}>💕</Text>
           <Text style={styles.menuText}>Love</Text>
-          <Text style={styles.menuPrice}>0.01 SOL</Text>
+          <Text style={styles.menuPrice}>🎁 FREE daily</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('finance')}>
           <Text style={styles.menuIcon}>💰</Text>
           <Text style={styles.menuText}>Finance</Text>
-          <Text style={styles.menuPrice}>0.01 SOL</Text>
+          <Text style={styles.menuPrice}>🎁 FREE daily</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('lottery')}>
           <Text style={styles.menuIcon}>🎱</Text>
           <Text style={styles.menuText}>Lucky Numbers</Text>
-          <Text style={styles.menuPrice}>Free</Text>
+          <Text style={styles.menuPrice}>🎁 FREE daily</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => setCurrentScreen('profile')}>
@@ -350,6 +378,16 @@ const styles = StyleSheet.create({
   heroTagline: {
     fontSize: 14,
     color: '#888888',
+  },
+  freeTag: {
+    fontSize: 16,
+    color: '#FFD700',
+    fontWeight: 'bold',
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#1F1F1F',
+    borderRadius: 20,
   },
   connectButton: {
     backgroundColor: '#9945FF',
