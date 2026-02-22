@@ -20,8 +20,9 @@ LOGO_PROMPTS = [
         'name': 'yun_logo_main',
         'prompt': '''Pixel art logo of Chinese character "運" (yun meaning luck/destiny) 
         in retro 8-bit pixel art style, dark background with golden/yellow glow,
-        mystical aura, blockchain crypto aesthetic, solana mobile style,
-        vibrant colors, high contrast, trending on CT crypto Twitter''',
+        mystical aura, blockchain crypto aesthetic, solana mobile seeker style,
+        vibrant colors, high contrast, trending on CT crypto Twitter.
+        At the bottom, add "SEEKER" text in pixel font, white/grey color similar to Solana branding.''',
         'aspect': '1:1',
         'resolution': '1k'
     },
@@ -56,7 +57,7 @@ ICON_PROMPTS = [
     },
     {
         'name': 'icon_love',
-        'prompt': 'Pixel art icon of two hearts together, romantic, 8-bit style, pink/red, dark background'
+        'prompt': 'Pixel art icon of two hearts together, romantic, 8-bit style, pink/red hearts, dark background'
     },
     {
         'name': 'icon_finance',
