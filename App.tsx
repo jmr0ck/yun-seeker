@@ -195,7 +195,26 @@ export default function App() {
   // Render profile screen
   const renderProfile = () => (
     <ScrollView style={styles.content}>
-      <Text style={styles.screenTitle}>Your Profile</Text>
+      {!walletConnected ? (
+        <View style={styles.walletRequired}>
+          <Text style={styles.walletRequiredTitle}>🔗 Wallet Required</Text>
+          <Text style={styles.walletRequiredText}>
+            Connect your Solana wallet to save your profile and reading history.
+          </Text>
+          <TouchableOpacity style={styles.connectButton} onPress={connectWallet}>
+            <Text style={styles.connectButtonText}>🔗 Connect Wallet</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          <View style={styles.profileHeader}>
+            <Text style={styles.profileAddress}>
+              {walletAddress.slice(0,8)}...{walletAddress.slice(-4)}
+            </Text>
+            <Text style={styles.profilePoints}>⭐ {points} points</Text>
+          </View>
+
+          <Text style={styles.screenTitle}>Your Profile</Text>
       
       <View style={styles.formGroup}>
         <Text style={styles.label}>Birth Date</Text>
@@ -388,6 +407,41 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: '#1F1F1F',
     borderRadius: 20,
+  },
+  walletRequired: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  walletRequiredTitle: {
+    fontSize: 24,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  walletRequiredText: {
+    fontSize: 14,
+    color: '#888888',
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#1F1F1F',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  profileAddress: {
+    color: '#FFFFFF',
+    fontSize: 14,
+  },
+  profilePoints: {
+    color: '#FFD700',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   connectButton: {
     backgroundColor: '#9945FF',
