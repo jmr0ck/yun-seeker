@@ -27,14 +27,6 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      [
-        "@solana/mobile-wallet-adapter-protocol-react-native",
-        {
-          "mwaContractAddress": "https://solanamobile.github.io/mobile-wallet-adapter/protocol/contract-address.json"
-        }
-      ]
-    ]
+    }
   }
 }

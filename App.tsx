@@ -6,11 +6,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  TouchableOpacity, 
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
   ScrollView,
   TextInput,
   Alert,
@@ -18,8 +18,9 @@ import {
   StatusBar,
   ImageBackground,
   Image,
-  Linking
+  Linking,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Buffer } from 'buffer';
 
 // Polyfill buffer for React Native
@@ -69,6 +70,25 @@ export default function App() {
   // Donation UI
   const [showDonate, setShowDonate] = useState(false);
   const [donateAmount, setDonateAmount] = useState<string>('0.005');
+
+  const freeKey = () => {
+    // Tie free/day to wallet when connected; otherwise device-local.
+    const id = walletConnected && walletAddress ? walletAddress : 'device';
+    return `yun:lastFreeRequest:${id}`;
+  };
+
+  // Load persisted free/day marker
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(freeKey());
+        if (raw) setLastFreeRequest(new Date(raw));
+      } catch {
+        // ignore
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletConnected, walletAddress]);
 
   // Check if free daily request is available
   const canUseFreeRequest = () => {
@@ -245,7 +265,13 @@ export default function App() {
       
       // Mark free request used (1 free request/day)
       if (freeAvailable) {
-        setLastFreeRequest(new Date());
+        const now = new Date();
+        setLastFreeRequest(now);
+        try {
+          await AsyncStorage.setItem(freeKey(), now.toISOString());
+        } catch {
+          // ignore
+        }
       }
     } catch (error) {
       Alert.alert('Error', 'Could not generate reading. Please check your birth data.');
@@ -310,7 +336,10 @@ export default function App() {
         <Text style={styles.heroTitle}>運</Text>
         <Text style={styles.heroSubtitle}>yun</Text>
         <Text style={styles.heroTagline}>Chinese Astrology on Solana</Text>
-        <Text style={styles.freeTag}>🎁 1 FREE reading every day!</Text>
+        <Text style={styles.freeTag}>🎁 1 free request per day</Text>
+        <Text style={styles.paywallTag}>
+          {canUseFreeRequest() ? '✅ Free request available today' : `💳 Free used — next reading: ${PRICES.EXTRA_READING} SOL`}
+        </Text>
       </View>
 
       {!walletConnected ? (
@@ -331,37 +360,37 @@ export default function App() {
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('chart')}>
           <Text style={styles.menuIcon}>🎂</Text>
           <Text style={styles.menuText}>Birth Chart</Text>
-          <Text style={styles.menuPrice}>🎁 FREE</Text>
+          <Text style={styles.menuPrice}>{canUseFreeRequest() ? '🎁 1/day' : `${PRICES.EXTRA_READING} SOL`}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('lottery')}>
           <Text style={styles.menuIcon}>🎰</Text>
           <Text style={styles.menuText}>Lucky Numbers</Text>
-          <Text style={styles.menuPrice}>🎁 FREE</Text>
+          <Text style={styles.menuPrice}>{canUseFreeRequest() ? '🎁 1/day' : `${PRICES.EXTRA_READING} SOL`}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('love')}>
           <Text style={styles.menuIcon}>💕</Text>
           <Text style={styles.menuText}>Love</Text>
-          <Text style={styles.menuPrice}>{PRICES.LOVE_COMPATIBILITY} SOL</Text>
+          <Text style={styles.menuPrice}>{canUseFreeRequest() ? '🎁 1/day' : `${PRICES.LOVE_COMPATIBILITY} SOL`}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('finance')}>
           <Text style={styles.menuIcon}>💰</Text>
           <Text style={styles.menuText}>Finance</Text>
-          <Text style={styles.menuPrice}>{PRICES.FINANCE_FORECAST} SOL</Text>
+          <Text style={styles.menuPrice}>{canUseFreeRequest() ? '🎁 1/day' : `${PRICES.FINANCE_FORECAST} SOL`}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('career')}>
           <Text style={styles.menuIcon}>💼</Text>
           <Text style={styles.menuText}>Career</Text>
-          <Text style={styles.menuPrice}>{PRICES.CAREER_GUIDANCE} SOL</Text>
+          <Text style={styles.menuPrice}>{canUseFreeRequest() ? '🎁 1/day' : `${PRICES.CAREER_GUIDANCE} SOL`}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('decision')}>
           <Text style={styles.menuIcon}>🎯</Text>
           <Text style={styles.menuText}>Decision</Text>
-          <Text style={styles.menuPrice}>{PRICES.DECISION_READING} SOL</Text>
+          <Text style={styles.menuPrice}>{canUseFreeRequest() ? '🎁 1/day' : `${PRICES.DECISION_READING} SOL`}</Text>
         </TouchableOpacity>
       </View>
 
@@ -578,6 +607,12 @@ const styles = StyleSheet.create({
     color: COLORS.green,
     marginTop: 12,
     fontWeight: 'bold',
+  },
+  paywallTag: {
+    fontSize: 12,
+    color: COLORS.cream,
+    marginTop: 8,
+    opacity: 0.9,
   },
   connectButton: {
     backgroundColor: COLORS.gold,
