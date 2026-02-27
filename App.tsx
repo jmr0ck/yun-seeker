@@ -378,9 +378,12 @@ export default function App() {
 
       {showDonate ? (
         <View style={styles.donatePanel}>
-          <Text style={styles.donateTitle}>Support yun (運)</Text>
+          <Text style={styles.donateTitle}>Tip / Support yun (運)</Text>
           <Text style={styles.donateSubtitle}>
-            If you like the reading, you can send a small SOL tip to keep the project alive.
+            If you like the reading, you can tip in SOL to support the work.
+          </Text>
+          <Text style={styles.donateNote}>
+            Tips don’t unlock extra requests — extra readings are charged separately.
           </Text>
 
           <Text style={styles.label}>Amount (SOL)</Text>
@@ -765,8 +768,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 6,
     opacity: 0.9,
+  },
+  donateNote: {
+    color: COLORS.cream,
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
+    marginBottom: 10,
+    opacity: 0.75,
   },
   donateButton: {
     backgroundColor: COLORS.gold,
