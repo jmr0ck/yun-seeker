@@ -206,7 +206,10 @@ export default function App() {
             {
               text: 'Verify payment',
               onPress: async () => {
-                const res = await solanaPayment.verifyPaymentByReference(pending);
+                const res = await solanaPayment.verifyPaymentByReferenceWithPolling(pending, {
+                  timeoutMs: 30000,
+                  intervalMs: 2500,
+                });
                 if (res.ok) {
                   resolve(true);
                 } else {

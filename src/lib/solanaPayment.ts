@@ -35,6 +35,35 @@ export interface WalletState {
   balance: number;
 }
 
+function sumSystemTransfersToDest(opts: { tx: any; keys: string[]; dest: string }): number {
+  const { tx, keys, dest } = opts;
+  const SYSTEM_PROGRAM = SystemProgram.programId.toBase58();
+
+  let sum = 0;
+
+  const msg: any = tx.transaction.message;
+  const ixs = msg.compiledInstructions ?? [];
+
+  for (const ix of ixs) {
+    const programId = keys[ix.programIdIndex];
+    if (programId !== SYSTEM_PROGRAM) continue;
+
+    const data = Buffer.from(ix.data);
+    if (data.length < 12) continue;
+
+    // SystemProgram transfer discriminator = 2 (u32 LE)
+    const disc = data.readUInt32LE(0);
+    if (disc !== 2) continue;
+
+    const lamports = Number(data.readBigUInt64LE(4));
+    const toIndex = ix.accountKeyIndexes?.[1];
+    const toKey = typeof toIndex === 'number' ? keys[toIndex] : undefined;
+    if (toKey === dest) sum += lamports;
+  }
+
+  return sum;
+}
+
 export type PendingPayment = {
   reference: string; // base58 pubkey
   to: string; // recipient pubkey
@@ -95,7 +124,9 @@ class SolanaPaymentService {
 
   // Verify a payment by looking up any tx that includes the reference key.
   // Best-effort: we confirm the tx exists and the destination appears in account keys.
-  async verifyPaymentByReference(pending: PendingPayment): Promise<{ ok: boolean; signature?: string; reason?: string }> {
+  async verifyPaymentByReference(
+    pending: PendingPayment,
+  ): Promise<{ ok: boolean; signature?: string; reason?: string }> {
     try {
       const ref = new PublicKey(pending.reference);
       const sigs = await this.connection.getSignaturesForAddress(ref, { limit: 10 });
@@ -106,17 +137,43 @@ class SolanaPaymentService {
       const tx = await this.connection.getTransaction(signature, { maxSupportedTransactionVersion: 0 });
       if (!tx) return { ok: false, reason: 'Transaction not available yet' };
 
-      const keys = tx.transaction.message.getAccountKeys().staticAccountKeys.map((k) => k.toBase58());
+      // Resolve account keys (supports v0 lookup addresses when present)
+      const loaded = tx.meta?.loadedAddresses;
+      const keyObj: any = loaded ? { accountKeysFromLookups: loaded } : undefined;
+      const keys = tx.transaction.message.getAccountKeys(keyObj).keySegments().flat().map((k: any) => k.toBase58?.() ?? String(k));
+
       if (!keys.includes(pending.to)) {
         return { ok: false, reason: 'Found tx, but destination does not match' };
       }
 
-      // NOTE: amount verification is hard without full instruction parsing here.
-      // For MVP: require destination + reference hit.
+      const lamportsToDest = sumSystemTransfersToDest({ tx, keys, dest: pending.to });
+      if (lamportsToDest < pending.minLamports) {
+        return { ok: false, reason: `Payment too small (need ≥${pending.minLamports} lamports)` };
+      }
+
       return { ok: true, signature };
     } catch (e: any) {
       return { ok: false, reason: String(e?.message ?? e) };
     }
+  }
+
+  async verifyPaymentByReferenceWithPolling(
+    pending: PendingPayment,
+    opts?: { timeoutMs?: number; intervalMs?: number },
+  ): Promise<{ ok: boolean; signature?: string; reason?: string }> {
+    const timeoutMs = opts?.timeoutMs ?? 30000;
+    const intervalMs = opts?.intervalMs ?? 2500;
+
+    const started = Date.now();
+    let lastReason: string | undefined;
+    while (Date.now() - started < timeoutMs) {
+      const res = await this.verifyPaymentByReference(pending);
+      if (res.ok) return res;
+      lastReason = res.reason;
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+
+    return { ok: false, reason: lastReason ?? 'Timed out waiting for payment' };
   }
 
   // Create payment transaction (legacy; not used in MVP)
