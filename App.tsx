@@ -30,7 +30,7 @@ if (typeof global.Buffer === 'undefined') {
 
 // Import yun astrology engine
 import { Luck } from './src/lib/luck';
-import { solanaPayment, PRICES } from './src/lib/solanaPayment';
+import { solanaPayment, PRICES, type PendingPayment } from './src/lib/solanaPayment';
 
 // Donation (SOL) — creator tip jar
 const DONATION_WALLET = '8HCddiWRKs8EnYL5UbpRjKJwNdpVPoaWrWKcX683V7qQ';
@@ -70,6 +70,9 @@ export default function App() {
   // Donation UI
   const [showDonate, setShowDonate] = useState(false);
   const [donateAmount, setDonateAmount] = useState<string>('0.005');
+
+  // Payment verification (Solana Pay reference)
+  const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null);
 
   const freeKey = () => {
     // Tie free/day to wallet when connected; otherwise device-local.
@@ -157,7 +160,7 @@ export default function App() {
     }
   };
 
-  // Process payment for premium feature (Solana Pay URI; opens wallet)
+  // Process payment for premium feature (Solana Pay + on-chain verification)
   const processPayment = async (priceSOL: number, feature: string): Promise<boolean> => {
     if (!walletConnected) {
       Alert.alert('Wallet Required', 'Please connect your wallet first!');
@@ -173,12 +176,12 @@ export default function App() {
     }
 
     try {
-      const params = new URLSearchParams({
-        amount: String(priceSOL),
+      const { uri, pending } = solanaPayment.createSolanaPayUri({
+        to: DONATION_WALLET,
+        amountSol: priceSOL,
         label: 'yun (運)',
         message: `Payment — ${feature}`,
       });
-      const uri = `solana:${DONATION_WALLET}?${params.toString()}`;
 
       const supported = await Linking.canOpenURL(uri);
       if (!supported) {
@@ -186,8 +189,39 @@ export default function App() {
         return false;
       }
 
+      setPendingPayment(pending);
       await Linking.openURL(uri);
-      // MVP: assume user completes payment in wallet.
+
+      // Ask user to verify (polling without a deep-link return is unreliable in Expo)
+      const confirmed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Payment started',
+          'After you send the SOL in your wallet, tap “Verify payment” to unlock this reading.',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => resolve(false),
+            },
+            {
+              text: 'Verify payment',
+              onPress: async () => {
+                const res = await solanaPayment.verifyPaymentByReference(pending);
+                if (res.ok) {
+                  resolve(true);
+                } else {
+                  Alert.alert('Not found yet', res.reason ?? 'Payment not found. Try again in a few seconds.');
+                  resolve(false);
+                }
+              },
+            },
+          ],
+        );
+      });
+
+      if (!confirmed) return false;
+
+      setPendingPayment(null);
       return true;
     } catch {
       Alert.alert('Error', 'Could not start payment flow.');
