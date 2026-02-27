@@ -1,11 +1,11 @@
 /**
  * yun - 運 Astrology App
- * Main App Entry Point
+ * Main App Entry Point - Pixel Art Edition
  * 
  * Built for Solana Mobile Hackathon
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -15,7 +15,10 @@ import {
   TextInput,
   Alert,
   SafeAreaView,
-  StatusBar
+  StatusBar,
+  ImageBackground,
+  Image,
+  Linking
 } from 'react-native';
 import { Buffer } from 'buffer';
 
@@ -25,15 +28,31 @@ if (typeof global.Buffer === 'undefined') {
 }
 
 // Import yun astrology engine
-import { Luck } from './src/lib/yun';
+import { Luck } from './src/lib/luck';
+import { solanaPayment, PRICES } from './src/lib/solanaPayment';
+
+// Donation (SOL) — creator tip jar
+const DONATION_WALLET = '8HCddiWRKs8EnYL5UbpRjKJwNdpVPoaWrWKcX683V7qQ';
+
+// Pixel art color palette
+const COLORS = {
+  darkBg: '#1a1a2e',
+  cardBg: '#16213e',
+  gold: '#FFD700',
+  darkGold: '#B8860B',
+  cream: '#FFFDD0',
+  red: '#E94560',
+  blue: '#0f3460',
+  green: '#228B22',
+};
 
 export default function App() {
   // User state
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
+  const [walletBalance, setWalletBalance] = useState(0);
   const [points, setPoints] = useState(0);
   const [lastFreeRequest, setLastFreeRequest] = useState<Date | null>(null);
-  const [todayFreeUsed, setTodayFreeUsed] = useState(false);
   
   // Form state
   const [birthDate, setBirthDate] = useState('');
@@ -45,47 +64,145 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState<'home' | 'profile' | 'reading' | 'wallet'>('home');
   const [reading, setReading] = useState<any>(null);
   const [question, setQuestion] = useState('');
+  const [dialogueStep, setDialogueStep] = useState(0);
+
+  // Donation UI
+  const [showDonate, setShowDonate] = useState(false);
+  const [donateAmount, setDonateAmount] = useState<string>('0.005');
 
   // Check if free daily request is available
   const canUseFreeRequest = () => {
     const now = new Date();
     if (!lastFreeRequest) return true;
-    
     const lastDate = new Date(lastFreeRequest);
-    const isSameDay = now.toDateString() === lastDate.toDateString();
-    return !isSameDay;
+    return now.toDateString() !== lastDate.toDateString();
   };
 
-  // Mock wallet connection (replace with real Solana Mobile SDK)
+  // Connect wallet (simulated for demo - in production use Solana Mobile SDK)
   const connectWallet = async () => {
-    // In production: use @solana/mobile-wallet-adapter
-    // For demo: simulate wallet connection
-    setWalletConnected(true);
-    setWalletAddress('7xKXtg2CW87d97TXJSDpbD5iBk8RV1fYSErQQN7G4BQ'); // Demo address
-    setPoints(10); // Welcome bonus
-    Alert.alert('Wallet Connected!', 'Welcome to 運 yun! 🎉\n\n🎁 You get 1 FREE reading every day!');
+    try {
+      // Simulate wallet connection
+      setWalletConnected(true);
+      setWalletAddress('7xKXtg2CW87d97TXJSDpbD5iBk8RV1fYSErQQN7G4BQ');
+      setPoints(10); // Welcome bonus
+      
+      // Get balance
+      const balance = await solanaPayment.getBalance(walletAddress);
+      setWalletBalance(balance);
+      
+      Alert.alert(
+        'Wallet Connected! 🐉', 
+        'Welcome to 運 yun!\n\n🎁 10 FREE points\n🎯 1 FREE reading daily\n\nSolana balance: ' + balance.toFixed(4) + ' SOL'
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to connect wallet');
+    }
   };
 
   const disconnectWallet = () => {
     setWalletConnected(false);
     setWalletAddress('');
+    setWalletBalance(0);
+  };
+
+  // Donation via Solana Pay URI (opens wallet)
+  const donateSol = async (amountSol: number) => {
+    try {
+      if (!solanaPayment.isValidAddress(DONATION_WALLET)) {
+        Alert.alert('Donation Disabled', 'Invalid donation wallet address configured.');
+        return;
+      }
+
+      // Solana Pay transfer request URI
+      const params = new URLSearchParams({
+        amount: String(amountSol),
+        label: 'yun (運)',
+        message: 'Donation / Tip jar',
+      });
+      const uri = `solana:${DONATION_WALLET}?${params.toString()}`;
+
+      const supported = await Linking.canOpenURL(uri);
+      if (!supported) {
+        // Fallback: copy address
+        Alert.alert(
+          'Open Wallet',
+          `Couldn’t open a Solana wallet automatically.\n\nDonation address:\n${DONATION_WALLET}`,
+        );
+        return;
+      }
+
+      await Linking.openURL(uri);
+    } catch (e) {
+      Alert.alert('Error', 'Could not start donation flow.');
+    }
+  };
+
+  // Process payment for premium feature (Solana Pay URI; opens wallet)
+  const processPayment = async (priceSOL: number, feature: string): Promise<boolean> => {
+    if (!walletConnected) {
+      Alert.alert('Wallet Required', 'Please connect your wallet first!');
+      return false;
+    }
+
+    if (walletBalance < priceSOL) {
+      Alert.alert(
+        'Insufficient Balance',
+        `Need ${priceSOL} SOL for ${feature}.\n\nYour balance: ${walletBalance.toFixed(4)} SOL`,
+      );
+      return false;
+    }
+
+    try {
+      const params = new URLSearchParams({
+        amount: String(priceSOL),
+        label: 'yun (運)',
+        message: `Payment — ${feature}`,
+      });
+      const uri = `solana:${DONATION_WALLET}?${params.toString()}`;
+
+      const supported = await Linking.canOpenURL(uri);
+      if (!supported) {
+        Alert.alert('Open Wallet', `Couldn’t open a wallet automatically.\n\nPay to:\n${DONATION_WALLET}`);
+        return false;
+      }
+
+      await Linking.openURL(uri);
+      // MVP: assume user completes payment in wallet.
+      return true;
+    } catch {
+      Alert.alert('Error', 'Could not start payment flow.');
+      return false;
+    }
   };
 
   // Generate reading based on birth data
-  const generateReading = (type: 'chart' | 'question' | 'love' | 'finance' | 'lottery') => {
+  const generateReading = async (type: 'chart' | 'question' | 'love' | 'finance' | 'lottery' | 'career' | 'decision') => {
     if (!birthDate) {
       Alert.alert('Setup Required', 'Please enter your birth details first!');
       setCurrentScreen('profile');
       return;
     }
 
-    // Check for free daily request
     const freeAvailable = canUseFreeRequest();
-    const isFreeReading = type === 'lottery'; // Lottery is always free
-    
-    if (!isFreeReading && !freeAvailable) {
-      Alert.alert('Daily Free Used!', 'Come back tomorrow for another free reading!\n\nOr connect wallet to unlock more.');
-      return;
+
+    // Pricing: 1 free request/day; after that, charge.
+    // Premium readings can cost more than the base extra reading.
+    const premiumPrices: Record<string, number> = {
+      chart: 0,
+      question: 0,
+      lottery: 0,
+      love: PRICES.LOVE_COMPATIBILITY,
+      finance: PRICES.FINANCE_FORECAST,
+      career: PRICES.CAREER_GUIDANCE,
+      decision: PRICES.DECISION_READING,
+    };
+
+    const premium = premiumPrices[type] || 0;
+
+    if (!freeAvailable) {
+      const priceToCharge = premium > 0 ? premium : PRICES.EXTRA_READING;
+      const paid = await processPayment(priceToCharge, `${type.toUpperCase()} reading`);
+      if (!paid) return;
     }
 
     // Parse birth data
@@ -98,37 +215,92 @@ export default function App() {
       let result;
       switch (type) {
         case 'chart':
-          result = Luck.read(birthData);
+          result = Luck.generateFourPillars(birthData);
           break;
-        case 'lottery':
-          // Import lottery would go here
-          result = { 
-            summary: 'Your lucky numbers today',
-            numbers: { main: [3, 5, 16, 21, 34, 41] }
-          };
+        case 'question':
+          result = Luck.generateDecision(question, birthData);
           break;
         case 'love':
-          const cz = require('./src/lib/chineseZodiac');
-          result = { compatibility: '85%', match: 'Rabbit, Tiger, Goat' };
+          result = Luck.generateCompatibility(birthData, birthData);
           break;
         case 'finance':
-          result = { forecast: 'Your 2026 finance is looking UP! September is your peak month.' };
+          result = Luck.generateFinance(birthData);
+          break;
+        case 'career':
+          result = Luck.generateCareer(birthData);
+          break;
+        case 'lottery':
+          result = Luck.generateLuckyNumbers(birthData);
+          break;
+        case 'decision':
+          result = Luck.generateDecision(question || 'General decision', birthData);
           break;
         default:
-          result = { answer: 'The stars align in your favor.' };
+          result = Luck.generateFourPillars(birthData);
       }
-      
-      setReading({ type, data: result, isFree: isFreeReading || freeAvailable });
+
+      setReading({ type, data: result });
+      setDialogueStep(0);
       setCurrentScreen('reading');
       
-      // Update free request tracker
-      if (freeAvailable && !isFreeReading) {
+      // Mark free request used (1 free request/day)
+      if (freeAvailable) {
         setLastFreeRequest(new Date());
-        setTodayFreeUsed(true);
       }
-    } catch (e) {
+    } catch (error) {
       Alert.alert('Error', 'Could not generate reading. Please check your birth data.');
     }
+  };
+
+  // Render dialogue for reading
+  const renderReadingDialogue = () => {
+    if (!reading) return null;
+    
+    const npcMessages = [
+      "Ah, seeker of wisdom... The stars align in your favor today.",
+      "Let me consult the ancient texts...",
+      "The spirits reveal much to those who ask...",
+      "Your destiny unfolds before us...",
+    ];
+    
+    return (
+      <View style={styles.dialogueContainer}>
+        <View style={styles.npcAvatar}>
+          <Text style={styles.npcEmoji}>🧙</Text>
+        </View>
+        <View style={styles.dialogueBox}>
+          <Text style={styles.npcName}>Sage Elder</Text>
+          <Text style={styles.dialogueText}>
+            {dialogueStep < npcMessages.length 
+              ? npcMessages[dialogueStep] 
+              : reading.data?.summary || "The reading reveals your path..."}
+          </Text>
+          {dialogueStep < npcMessages.length ? (
+            <TouchableOpacity 
+              style={styles.continueButton}
+              onPress={() => setDialogueStep(prev => prev + 1)}
+            >
+              <Text style={styles.continueText}>▼ Continue</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={{ gap: 10, alignItems: 'flex-end' }}>
+              <TouchableOpacity
+                style={styles.continueButton}
+                onPress={() => setShowDonate(true)}
+              >
+                <Text style={styles.continueText}>🙏 Tip the Sage</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.continueButton}
+                onPress={() => setCurrentScreen('home')}
+              >
+                <Text style={styles.continueText}>🏠 Return Home</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+    );
   };
 
   // Render home screen
@@ -136,8 +308,8 @@ export default function App() {
     <ScrollView style={styles.content}>
       <View style={styles.hero}>
         <Text style={styles.heroTitle}>運</Text>
-        <Text style={styles.heroSubtitle}>Chinese Astrology on Solana</Text>
-        <Text style={styles.heroTagline}>3,000 years of wisdom</Text>
+        <Text style={styles.heroSubtitle}>yun</Text>
+        <Text style={styles.heroTagline}>Chinese Astrology on Solana</Text>
         <Text style={styles.freeTag}>🎁 1 FREE reading every day!</Text>
       </View>
 
@@ -147,7 +319,10 @@ export default function App() {
         </TouchableOpacity>
       ) : (
         <View style={styles.walletInfo}>
-          <Text style={styles.walletText}>Connected: {walletAddress.slice(0,8)}...{walletAddress.slice(-4)}</Text>
+          <Text style={styles.walletText}>
+            {solanaPayment.formatAddress(walletAddress)}
+          </Text>
+          <Text style={styles.balanceText}>💰 {walletBalance.toFixed(4)} SOL</Text>
           <Text style={styles.pointsText}>⭐ {points} points</Text>
         </View>
       )}
@@ -156,109 +331,140 @@ export default function App() {
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('chart')}>
           <Text style={styles.menuIcon}>🎂</Text>
           <Text style={styles.menuText}>Birth Chart</Text>
-          <Text style={styles.menuPrice}>🎁 FREE daily</Text>
+          <Text style={styles.menuPrice}>🎁 FREE</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('question')}>
-          <Text style={styles.menuIcon}>🔮</Text>
-          <Text style={styles.menuText}>Ask Question</Text>
-          <Text style={styles.menuPrice}>🎁 FREE daily</Text>
+        <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('lottery')}>
+          <Text style={styles.menuIcon}>🎰</Text>
+          <Text style={styles.menuText}>Lucky Numbers</Text>
+          <Text style={styles.menuPrice}>🎁 FREE</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('love')}>
           <Text style={styles.menuIcon}>💕</Text>
           <Text style={styles.menuText}>Love</Text>
-          <Text style={styles.menuPrice}>🎁 FREE daily</Text>
+          <Text style={styles.menuPrice}>{PRICES.LOVE_COMPATIBILITY} SOL</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('finance')}>
           <Text style={styles.menuIcon}>💰</Text>
           <Text style={styles.menuText}>Finance</Text>
-          <Text style={styles.menuPrice}>🎁 FREE daily</Text>
+          <Text style={styles.menuPrice}>{PRICES.FINANCE_FORECAST} SOL</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('lottery')}>
-          <Text style={styles.menuIcon}>🎱</Text>
-          <Text style={styles.menuText}>Lucky Numbers</Text>
-          <Text style={styles.menuPrice}>🎁 FREE daily</Text>
+        <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('career')}>
+          <Text style={styles.menuIcon}>💼</Text>
+          <Text style={styles.menuText}>Career</Text>
+          <Text style={styles.menuPrice}>{PRICES.CAREER_GUIDANCE} SOL</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={() => setCurrentScreen('profile')}>
-          <Text style={styles.menuIcon}>👤</Text>
-          <Text style={styles.menuText}>My Profile</Text>
-          <Text style={styles.menuPrice}>Setup</Text>
+        <TouchableOpacity style={styles.menuItem} onPress={() => generateReading('decision')}>
+          <Text style={styles.menuIcon}>🎯</Text>
+          <Text style={styles.menuText}>Decision</Text>
+          <Text style={styles.menuPrice}>{PRICES.DECISION_READING} SOL</Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity style={styles.navButton} onPress={() => setCurrentScreen('profile')}>
+        <Text style={styles.navButtonText}>⚙️ Profile Settings</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.navButton, { borderColor: 'rgba(255, 215, 0, 0.35)' }]}
+        onPress={() => setShowDonate((v) => !v)}
+      >
+        <Text style={styles.navButtonText}>🙏 Donate / Tip the Sage</Text>
+      </TouchableOpacity>
+
+      {showDonate ? (
+        <View style={styles.donatePanel}>
+          <Text style={styles.donateTitle}>Support yun (運)</Text>
+          <Text style={styles.donateSubtitle}>
+            If you like the reading, you can send a small SOL tip to keep the project alive.
+          </Text>
+
+          <Text style={styles.label}>Amount (SOL)</Text>
+          <TextInput
+            style={styles.input}
+            value={donateAmount}
+            onChangeText={setDonateAmount}
+            placeholder="0.005"
+            placeholderTextColor={COLORS.cream}
+            keyboardType="decimal-pad"
+          />
+
+          <TouchableOpacity
+            style={styles.donateButton}
+            onPress={() => {
+              const amt = Number(donateAmount);
+              if (!Number.isFinite(amt) || amt <= 0) {
+                Alert.alert('Invalid Amount', 'Enter a valid SOL amount (e.g. 0.01)');
+                return;
+              }
+              donateSol(amt);
+            }}
+          >
+            <Text style={styles.donateButtonText}>💛 Open Wallet to Donate</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.donateAddrLabel}>Donation wallet:</Text>
+          <Text style={styles.donateAddr}>{DONATION_WALLET}</Text>
+        </View>
+      ) : null}
     </ScrollView>
   );
 
   // Render profile screen
   const renderProfile = () => (
     <ScrollView style={styles.content}>
-      {!walletConnected ? (
-        <View style={styles.walletRequired}>
-          <Text style={styles.walletRequiredTitle}>🔗 Wallet Required</Text>
-          <Text style={styles.walletRequiredText}>
-            Connect your Solana wallet to save your profile and reading history.
-          </Text>
-          <TouchableOpacity style={styles.connectButton} onPress={connectWallet}>
-            <Text style={styles.connectButtonText}>🔗 Connect Wallet</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <>
-          <View style={styles.profileHeader}>
-            <Text style={styles.profileAddress}>
-              {walletAddress.slice(0,8)}...{walletAddress.slice(-4)}
-            </Text>
-            <Text style={styles.profilePoints}>⭐ {points} points</Text>
-          </View>
-
-          <Text style={styles.screenTitle}>Your Profile</Text>
+      <Text style={styles.screenTitle}>Profile Settings</Text>
       
       <View style={styles.formGroup}>
-        <Text style={styles.label}>Birth Date</Text>
-        <TextInput 
+        <Text style={styles.label}>Birth Date (YYYY-MM-DD)</Text>
+        <TextInput
           style={styles.input}
-          placeholder="YYYY-MM-DD"
           value={birthDate}
           onChangeText={setBirthDate}
+          placeholder="1990-01-15"
+          placeholderTextColor="#666"
         />
       </View>
 
       <View style={styles.formGroup}>
-        <Text style={styles.label}>Birth Time (hour)</Text>
-        <TextInput 
+        <Text style={styles.label}>Birth Time (HH:MM)</Text>
+        <TextInput
           style={styles.input}
-          placeholder="0-23"
           value={birthTime}
           onChangeText={setBirthTime}
-          keyboardType="numeric"
+          placeholder="12:00"
+          placeholderTextColor="#666"
         />
       </View>
 
       <View style={styles.formGroup}>
         <Text style={styles.label}>Birth Place</Text>
-        <TextInput 
+        <TextInput
           style={styles.input}
-          placeholder="City, Country"
           value={birthPlace}
           onChangeText={setBirthPlace}
+          placeholder="Hong Kong"
+          placeholderTextColor="#666"
         />
       </View>
 
       <View style={styles.formGroup}>
         <Text style={styles.label}>Current Location</Text>
-        <TextInput 
+        <TextInput
           style={styles.input}
-          placeholder="City, Country"
           value={currentLocation}
           onChangeText={setCurrentLocation}
+          placeholder="Hong Kong"
+          placeholderTextColor="#666"
         />
       </View>
 
       <TouchableOpacity style={styles.saveButton} onPress={() => setCurrentScreen('home')}>
-        <Text style={styles.saveButtonText}>Save & Continue</Text>
+        <Text style={styles.saveButtonText}>Save & Return</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -266,90 +472,43 @@ export default function App() {
   // Render reading screen
   const renderReading = () => (
     <ScrollView style={styles.content}>
-      <TouchableOpacity onPress={() => setCurrentScreen('home')}>
-        <Text style={styles.backLink}>← Back to Home</Text>
-      </TouchableOpacity>
-
       <Text style={styles.screenTitle}>
-        {reading?.type === 'chart' && '🎂 Your Birth Chart'}
-        {reading?.type === 'question' && '🔮 Your Answer'}
-        {reading?.type === 'love' && '💕 Love Reading'}
-        {reading?.type === 'finance' && '💰 Finance Forecast'}
-        {reading?.type === 'lottery' && '🎱 Lucky Numbers'}
+        {reading?.type?.toUpperCase()} Reading
       </Text>
-
-      <View style={styles.readingCard}>
-        {reading?.type === 'chart' && (
-          <>
-            <Text style={styles.readingText}>{reading.data.summary}</Text>
-            <Text style={styles.readingDetail}>Strengths: {reading.data.details.strengths?.join(', ')}</Text>
-            <Text style={styles.readingDetail}>Weaknesses: {reading.data.details.weaknesses?.join(', ')}</Text>
-            {reading.data.details.luckyElements && (
-              <>
-                <Text style={styles.readingLabel}>🍀 Lucky Elements:</Text>
-                <Text style={styles.readingDetail}>Colors: {reading.data.details.luckyElements.colors?.join(', ')}</Text>
-                <Text style={styles.readingDetail}>Numbers: {reading.data.details.luckyElements.numbers?.join(', ')}</Text>
-                <Text style={styles.readingDetail}>Directions: {reading.data.details.luckyElements.directions?.join(', ')}</Text>
-              </>
-            )}
-          </>
-        )}
-
-        {reading?.type === 'lottery' && (
-          <>
-            <Text style={styles.readingText}>Your lucky numbers today:</Text>
-            <Text style={styles.lotteryNumbers}>{reading.data.numbers.main.join('  ')}</Text>
-            <Text style={styles.readingNote}>Good luck! 🍀</Text>
-          </>
-        )}
-
-        {reading?.type === 'love' && (
-          <>
-            <Text style={styles.readingText}>Compatibility Score: {reading.data.compatibility}</Text>
-            <Text style={styles.readingDetail}>Best matches: {reading.data.match}</Text>
-          </>
-        )}
-
-        {reading?.type === 'finance' && (
-          <>
-            <Text style={styles.readingText}>{reading.data.forecast}</Text>
-          </>
-        )}
-      </View>
-
-      <View style={styles.earnPoints}>
-        <Text style={styles.pointsEarned}>+5 points earned!</Text>
-      </View>
+      
+      {renderReadingDialogue()}
+      
+      {reading?.data && (
+        <View style={styles.resultCard}>
+          <Text style={styles.resultText}>
+            {JSON.stringify(reading.data, null, 2)}
+          </Text>
+        </View>
+      )}
     </ScrollView>
   );
 
+  // Main render
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.darkBg} />
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.logo}>運</Text>
-        <Text style={styles.headerTitle}>yun</Text>
+        <TouchableOpacity onPress={() => setCurrentScreen('home')}>
+          <Text style={styles.logo}>運</Text>
+        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {walletConnected && (
+            <Text style={styles.headerPoints}>⭐ {points}</Text>
+          )}
+        </View>
       </View>
 
-      {/* Main Content */}
+      {/* Screen Content */}
       {currentScreen === 'home' && renderHome()}
       {currentScreen === 'profile' && renderProfile()}
       {currentScreen === 'reading' && renderReading()}
-
-      {/* Bottom Nav */}
-      <View style={styles.nav}>
-        <TouchableOpacity onPress={() => setCurrentScreen('home')}>
-          <Text style={[styles.navItem, currentScreen === 'home' && styles.navActive]}>🏠</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setCurrentScreen('profile')}>
-          <Text style={[styles.navItem, currentScreen === 'profile' && styles.navActive]}>👤</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={walletConnected ? disconnectWallet : connectWallet}>
-          <Text style={styles.navItem}>{walletConnected ? '🔓' : '🔗'}</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
@@ -357,24 +516,31 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0D0D0D',
+    backgroundColor: COLORS.darkBg,
   },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1F1F1F',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: COLORS.cardBg,
+    borderBottomWidth: 2,
+    borderBottomColor: COLORS.gold,
   },
   logo: {
     fontSize: 32,
-    marginRight: 8,
-  },
-  headerTitle: {
-    fontSize: 24,
+    color: COLORS.gold,
     fontWeight: 'bold',
-    color: '#FFD700',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerPoints: {
+    color: COLORS.gold,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   content: {
     flex: 1,
@@ -382,94 +548,65 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
-    marginBottom: 24,
+    paddingVertical: 30,
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: COLORS.gold,
   },
   heroTitle: {
-    fontSize: 64,
-    color: '#FFD700',
-    marginBottom: 8,
+    fontSize: 72,
+    color: COLORS.gold,
+    fontWeight: 'bold',
   },
   heroSubtitle: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    marginBottom: 4,
+    fontSize: 24,
+    color: COLORS.cream,
+    marginTop: -10,
   },
   heroTagline: {
     fontSize: 14,
-    color: '#888888',
+    color: COLORS.cream,
+    marginTop: 8,
   },
   freeTag: {
     fontSize: 16,
-    color: '#FFD700',
-    fontWeight: 'bold',
+    color: COLORS.green,
     marginTop: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#1F1F1F',
-    borderRadius: 20,
-  },
-  walletRequired: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  walletRequiredTitle: {
-    fontSize: 24,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  walletRequiredText: {
-    fontSize: 14,
-    color: '#888888',
-    textAlign: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 20,
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#1F1F1F',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  profileAddress: {
-    color: '#FFFFFF',
-    fontSize: 14,
-  },
-  profilePoints: {
-    color: '#FFD700',
-    fontSize: 16,
     fontWeight: 'bold',
   },
   connectButton: {
-    backgroundColor: '#9945FF',
+    backgroundColor: COLORS.gold,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   connectButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: COLORS.darkBg,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   walletInfo: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#1F1F1F',
+    justifyContent: 'space-around',
+    backgroundColor: COLORS.cardBg,
     padding: 12,
     borderRadius: 8,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   walletText: {
-    color: '#888888',
-    fontSize: 12,
+    color: COLORS.cream,
+    fontSize: 14,
+  },
+  balanceText: {
+    color: COLORS.green,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   pointsText: {
-    color: '#FFD700',
+    color: COLORS.gold,
     fontSize: 14,
     fontWeight: 'bold',
   },
@@ -480,122 +617,177 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     width: '48%',
-    backgroundColor: '#1F1F1F',
+    backgroundColor: COLORS.cardBg,
     padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    borderRadius: 8,
     alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.gold,
   },
   menuIcon: {
     fontSize: 32,
     marginBottom: 8,
   },
   menuText: {
-    color: '#FFFFFF',
+    color: COLORS.cream,
     fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 4,
   },
   menuPrice: {
-    color: '#9945FF',
+    color: COLORS.gold,
     fontSize: 12,
+    marginTop: 4,
+  },
+  navButton: {
+    backgroundColor: COLORS.cardBg,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: COLORS.cream,
+  },
+  navButtonText: {
+    color: COLORS.cream,
+    fontSize: 16,
   },
   screenTitle: {
     fontSize: 24,
+    color: COLORS.gold,
     fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 16,
+    textAlign: 'center',
+    marginBottom: 20,
   },
   formGroup: {
     marginBottom: 16,
   },
   label: {
-    color: '#888888',
+    color: COLORS.cream,
     fontSize: 14,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#1F1F1F',
-    color: '#FFFFFF',
+    backgroundColor: COLORS.cardBg,
+    color: COLORS.cream,
     padding: 12,
     borderRadius: 8,
     fontSize: 16,
+    borderWidth: 1,
+    borderColor: COLORS.gold,
   },
   saveButton: {
-    backgroundColor: '#9945FF',
+    backgroundColor: COLORS.gold,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 20,
   },
   saveButtonText: {
-    color: '#FFFFFF',
+    color: COLORS.darkBg,
     fontSize: 16,
     fontWeight: 'bold',
   },
-  backLink: {
-    color: '#9945FF',
-    fontSize: 14,
-    marginBottom: 16,
+  dialogueContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
   },
-  readingCard: {
-    backgroundColor: '#1F1F1F',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 16,
+  npcAvatar: {
+    width: 60,
+    height: 60,
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: COLORS.gold,
   },
-  readingText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    marginBottom: 12,
-  },
-  readingLabel: {
-    color: '#FFD700',
-    fontSize: 16,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  readingDetail: {
-    color: '#AAAAAA',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  lotteryNumbers: {
-    color: '#FFD700',
+  npcEmoji: {
     fontSize: 32,
+  },
+  dialogueBox: {
+    flex: 1,
+    backgroundColor: COLORS.cardBg,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.gold,
+  },
+  npcName: {
+    color: COLORS.gold,
+    fontSize: 14,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 16,
+    fontStyle: 'italic',
+    marginBottom: 8,
   },
-  readingNote: {
-    color: '#888888',
+  dialogueText: {
+    color: COLORS.cream,
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  continueButton: {
+    marginTop: 12,
+    alignSelf: 'flex-end',
+  },
+  continueText: {
+    color: COLORS.gold,
+    fontSize: 14,
+  },
+  resultCard: {
+    backgroundColor: COLORS.cardBg,
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  resultText: {
+    color: COLORS.cream,
     fontSize: 12,
-    textAlign: 'center',
-    marginTop: 8,
   },
-  earnPoints: {
-    backgroundColor: '#1F1F1F',
-    padding: 12,
+
+  donatePanel: {
+    marginTop: 12,
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: COLORS.gold,
+  },
+  donateTitle: {
+    color: COLORS.gold,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  donateSubtitle: {
+    color: COLORS.cream,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginBottom: 10,
+    opacity: 0.9,
+  },
+  donateButton: {
+    backgroundColor: COLORS.gold,
+    paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
-  pointsEarned: {
-    color: '#FFD700',
+  donateButtonText: {
+    color: COLORS.darkBg,
     fontSize: 14,
     fontWeight: 'bold',
   },
-  nav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#1F1F1F',
+  donateAddrLabel: {
+    marginTop: 10,
+    color: COLORS.cream,
+    fontSize: 12,
+    opacity: 0.8,
   },
-  navItem: {
-    fontSize: 24,
-    padding: 8,
-  },
-  navActive: {
-    opacity: 1,
+  donateAddr: {
+    color: COLORS.cream,
+    fontSize: 12,
+    marginTop: 4,
   },
 });
