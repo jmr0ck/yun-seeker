@@ -24,6 +24,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Buffer } from 'buffer';
+import { Connection, SystemProgram, Transaction } from '@solana/web3.js';
 
 // Polyfill buffer for React Native
 if (typeof global.Buffer === 'undefined') {
@@ -36,6 +37,7 @@ import { solanaPayment, PRICES, type PendingPayment } from './src/lib/solanaPaym
 
 // Donation (SOL) — creator tip jar
 const DONATION_WALLET = '8HCddiWRKs8EnYL5UbpRjKJwNdpVPoaWrWKcX683V7qQ';
+const SOLANA_RPC = 'https://api.mainnet-beta.solana.com';
 
 // Pixel art color palette
 const COLORS = {
@@ -162,7 +164,35 @@ export default function App() {
     setWalletBalance(0);
   };
 
-  // Donation via Solana Pay URI (opens wallet)
+  async function sendSolViaMWA(opts: { amountSol: number; label: string; message: string }) {
+    if (!walletConnected || !walletAddress) throw new Error('wallet not connected');
+
+    const connection = new Connection(SOLANA_RPC, 'confirmed');
+    const tx = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: new PublicKey(walletAddress),
+        toPubkey: new PublicKey(DONATION_WALLET),
+        lamports: Math.round(opts.amountSol * 1e9),
+      }),
+    );
+    tx.feePayer = new PublicKey(walletAddress);
+    const { blockhash } = await connection.getLatestBlockhash('confirmed');
+    tx.recentBlockhash = blockhash;
+
+    const sigs = await transact((wallet) =>
+      wallet.signAndSendTransactions({
+        transactions: [tx],
+      }),
+    );
+
+    const sig = sigs?.[0];
+    if (!sig) throw new Error('no signature returned');
+
+    await connection.confirmTransaction(sig, 'confirmed');
+    return sig;
+  }
+
+  // Donation (real send if wallet connected; fallback to Solana Pay URI)
   const donateSol = async (amountSol: number) => {
     try {
       if (!solanaPayment.isValidAddress(DONATION_WALLET)) {
@@ -170,7 +200,19 @@ export default function App() {
         return;
       }
 
-      // Solana Pay transfer request URI
+      if (walletConnected && walletAddress) {
+        const sig = await sendSolViaMWA({
+          amountSol,
+          label: 'yun (運)',
+          message: 'Donation / Tip jar',
+        });
+        const balance = await solanaPayment.getBalance(walletAddress);
+        setWalletBalance(balance);
+        Alert.alert('Thank you 🙏', `Donation sent!\n\nTx: ${sig.slice(0, 8)}…`);
+        return;
+      }
+
+      // Fallback: Solana Pay transfer request URI
       const params = new URLSearchParams({
         amount: String(amountSol),
         label: 'yun (運)',
@@ -180,11 +222,7 @@ export default function App() {
 
       const supported = await Linking.canOpenURL(uri);
       if (!supported) {
-        // Fallback: copy address
-        Alert.alert(
-          'Open Wallet',
-          `Couldn’t open a Solana wallet automatically.\n\nDonation address:\n${DONATION_WALLET}`,
-        );
+        Alert.alert('Open Wallet', `Couldn’t open a Solana wallet automatically.\n\nDonation address:\n${DONATION_WALLET}`);
         return;
       }
 
@@ -194,7 +232,8 @@ export default function App() {
     }
   };
 
-  // Process payment for premium feature (Solana Pay + on-chain verification)
+  // Process payment for premium feature
+  // Prefer real sign+send via MWA when connected; fallback to Solana Pay reference flow.
   const processPayment = async (priceSOL: number, feature: string): Promise<boolean> => {
     if (!walletConnected) {
       Alert.alert('Wallet Required', 'Please connect your wallet first!');
@@ -210,6 +249,19 @@ export default function App() {
     }
 
     try {
+      // Best UX: sign+send directly via connected wallet
+      if (walletConnected && walletAddress) {
+        const sig = await sendSolViaMWA({
+          amountSol: priceSOL,
+          label: 'yun (運)',
+          message: `Payment — ${feature}`,
+        });
+        const balance = await solanaPayment.getBalance(walletAddress);
+        setWalletBalance(balance);
+        return true;
+      }
+
+      // Fallback: Solana Pay + reference verification
       const { uri, pending } = solanaPayment.createSolanaPayUri({
         to: DONATION_WALLET,
         amountSol: priceSOL,
@@ -226,7 +278,6 @@ export default function App() {
       setPendingPayment(pending);
       await Linking.openURL(uri);
 
-      // Ask user to verify (polling without a deep-link return is unreliable in Expo)
       const confirmed = await new Promise<boolean>((resolve) => {
         Alert.alert(
           'Payment started',
@@ -244,9 +295,8 @@ export default function App() {
                   timeoutMs: 30000,
                   intervalMs: 2500,
                 });
-                if (res.ok) {
-                  resolve(true);
-                } else {
+                if (res.ok) resolve(true);
+                else {
                   Alert.alert('Not found yet', res.reason ?? 'Payment not found. Try again in a few seconds.');
                   resolve(false);
                 }
@@ -419,11 +469,11 @@ export default function App() {
         </TouchableOpacity>
       ) : (
         <View style={styles.walletInfo}>
-          <Text style={styles.walletText}>
-            {solanaPayment.formatAddress(walletAddress)}
-          </Text>
+          <Text style={styles.walletText}>{solanaPayment.formatAddress(walletAddress)}</Text>
           <Text style={styles.balanceText}>💰 {walletBalance.toFixed(4)} SOL</Text>
-          <Text style={styles.pointsText}>⭐ {points} points</Text>
+          <TouchableOpacity style={styles.disconnectBtn} onPress={disconnectWallet}>
+            <Text style={styles.disconnectBtnText}>Disconnect</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -717,6 +767,19 @@ const styles = StyleSheet.create({
   pointsText: {
     color: COLORS.gold,
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  disconnectBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  disconnectBtnText: {
+    color: COLORS.cream,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   menuGrid: {
