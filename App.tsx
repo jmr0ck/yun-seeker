@@ -493,12 +493,22 @@ export default function App() {
 
       {!walletConnected ? (
         <TouchableOpacity style={styles.connectButton} onPress={connectWallet}>
-          <Text style={styles.connectButtonText}>🔗 Connect Wallet</Text>
+          <Text style={styles.connectButtonText}>🔗 Connect Seeker Wallet</Text>
         </TouchableOpacity>
+        <Text style={styles.walletHint}>Uses Solana Mobile Wallet Adapter (MWA)</Text>
       ) : (
         <View style={styles.walletInfo}>
           <Text style={styles.walletText}>{solanaPayment.formatAddress(walletAddress)}</Text>
           <Text style={styles.balanceText}>💰 {walletBalance.toFixed(4)} SOL</Text>
+          <TouchableOpacity
+            style={styles.disconnectBtn}
+            onPress={async () => {
+              const balance = await solanaPayment.getBalance(walletAddress);
+              setWalletBalance(balance);
+            }}
+          >
+            <Text style={styles.disconnectBtnText}>Refresh</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.disconnectBtn} onPress={disconnectWallet}>
             <Text style={styles.disconnectBtnText}>Disconnect</Text>
           </TouchableOpacity>
@@ -837,7 +847,14 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
+  },
+  walletHint: {
+    color: COLORS.cream,
+    fontSize: 12,
+    textAlign: 'center',
+    opacity: 0.8,
+    marginBottom: 16,
   },
   connectButtonText: {
     color: COLORS.darkBg,
