@@ -46,6 +46,7 @@ const ASSETS = {
   bgHome: require('./assets/pixel_jrpg/bg_home.png'),
   bgReading: require('./assets/pixel_jrpg/bg_reading.png'),
   sagePortrait: require('./assets/pixel_jrpg/sage_portrait.png'),
+  panelDialogue: require('./assets/pixel_jrpg/panel_dialogue.png'),
 };
 
 // Pixel art color palette
@@ -450,7 +451,7 @@ export default function App() {
         <View style={styles.npcAvatar}>
           <Image source={ASSETS.sagePortrait} style={styles.sagePortrait} />
         </View>
-        <View style={styles.dialogueBox}>
+        <ImageBackground source={ASSETS.panelDialogue} style={styles.dialogueBox} resizeMode="stretch">
           <Text style={styles.npcName}>Sage Elder</Text>
           <Text style={styles.dialogueText}>
             {dialogueStep < npcMessages.length
@@ -471,7 +472,7 @@ export default function App() {
               </TouchableOpacity>
             </View>
           )}
-        </View>
+        </ImageBackground>
       </View>
     );
   };
@@ -662,21 +663,19 @@ export default function App() {
 
   // Render reading screen
   const renderReading = () => (
-    <ScrollView style={styles.content}>
-      <Text style={styles.screenTitle}>
-        {reading?.type?.toUpperCase()} Reading
-      </Text>
-      
-      {renderReadingDialogue()}
-      
-      {reading?.data && (
-        <View style={styles.resultCard}>
-          <Text style={styles.resultText}>
-            {JSON.stringify(reading.data, null, 2)}
-          </Text>
-        </View>
-      )}
-    </ScrollView>
+    <ImageBackground source={ASSETS.bgReading} style={styles.bg} resizeMode="cover">
+      <ScrollView style={styles.content}>
+        <Text style={styles.screenTitle}>{reading?.type?.toUpperCase()} Reading</Text>
+
+        {renderReadingDialogue()}
+
+        {reading?.data && (
+          <View style={styles.resultCard}>
+            <Text style={styles.resultText}>{JSON.stringify(reading.data, null, 2)}</Text>
+          </View>
+        )}
+      </ScrollView>
+    </ImageBackground>
   );
 
   // Main render
@@ -1035,11 +1034,9 @@ const styles = StyleSheet.create({
   },
   dialogueBox: {
     flex: 1,
-    backgroundColor: COLORS.cardBg,
     padding: 16,
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: COLORS.gold,
+    overflow: 'hidden',
   },
   npcName: {
     color: COLORS.gold,
