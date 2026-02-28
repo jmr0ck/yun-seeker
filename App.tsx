@@ -21,6 +21,8 @@ import {
   ImageBackground,
   Image,
   Linking,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Buffer } from 'buffer';
@@ -78,6 +80,12 @@ export default function App() {
 
   // Payment verification (Solana Pay reference)
   const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null);
+
+  // Payment UX modal
+  const [payModalVisible, setPayModalVisible] = useState(false);
+  const [payModalTitle, setPayModalTitle] = useState('');
+  const [payModalBody, setPayModalBody] = useState('');
+  const [payModalCanClose, setPayModalCanClose] = useState(false);
 
   const freeKey = () => {
     // Tie free/day to wallet when connected; otherwise device-local.
@@ -164,8 +172,15 @@ export default function App() {
     setWalletBalance(0);
   };
 
-  async function sendSolViaMWA(opts: { amountSol: number; label: string; message: string }) {
+  async function sendSolViaMWA(opts: {
+    amountSol: number;
+    label: string;
+    message: string;
+    onProgress?: (title: string, body: string) => void;
+  }) {
     if (!walletConnected || !walletAddress) throw new Error('wallet not connected');
+
+    opts.onProgress?.('Preparing transaction…', 'Building transfer');
 
     const connection = new Connection(SOLANA_RPC, 'confirmed');
     const tx = new Transaction().add(
@@ -176,9 +191,12 @@ export default function App() {
       }),
     );
     tx.feePayer = new PublicKey(walletAddress);
-    const { blockhash } = await connection.getLatestBlockhash('confirmed');
+
+    opts.onProgress?.('Preparing transaction…', 'Fetching recent blockhash');
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
     tx.recentBlockhash = blockhash;
 
+    opts.onProgress?.('Sending…', 'Approve in your wallet');
     const sigs = await transact((wallet) =>
       wallet.signAndSendTransactions({
         transactions: [tx],
@@ -188,7 +206,8 @@ export default function App() {
     const sig = sigs?.[0];
     if (!sig) throw new Error('no signature returned');
 
-    await connection.confirmTransaction(sig, 'confirmed');
+    opts.onProgress?.('Confirming…', 'Waiting for confirmation');
+    await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
     return sig;
   }
 
@@ -201,14 +220,26 @@ export default function App() {
       }
 
       if (walletConnected && walletAddress) {
+        setPayModalVisible(true);
+        setPayModalTitle('Sending donation…');
+        setPayModalBody('');
+        setPayModalCanClose(false);
+
         const sig = await sendSolViaMWA({
           amountSol,
           label: 'yun (運)',
           message: 'Donation / Tip jar',
+          onProgress: (t, b) => {
+            setPayModalTitle(t);
+            setPayModalBody(b);
+          },
         });
         const balance = await solanaPayment.getBalance(walletAddress);
         setWalletBalance(balance);
-        Alert.alert('Thank you 🙏', `Donation sent!\n\nTx: ${sig.slice(0, 8)}…`);
+
+        setPayModalTitle('Donation sent ✅');
+        setPayModalBody(`Tx: ${sig.slice(0, 8)}…`);
+        setPayModalCanClose(true);
         return;
       }
 
@@ -228,6 +259,8 @@ export default function App() {
 
       await Linking.openURL(uri);
     } catch (e) {
+      setPayModalVisible(false);
+      setPayModalCanClose(false);
       Alert.alert('Error', 'Could not start donation flow.');
     }
   };
@@ -251,13 +284,26 @@ export default function App() {
     try {
       // Best UX: sign+send directly via connected wallet
       if (walletConnected && walletAddress) {
+        setPayModalVisible(true);
+        setPayModalTitle('Processing payment…');
+        setPayModalBody('');
+        setPayModalCanClose(false);
+
         const sig = await sendSolViaMWA({
           amountSol: priceSOL,
           label: 'yun (運)',
           message: `Payment — ${feature}`,
+          onProgress: (t, b) => {
+            setPayModalTitle(t);
+            setPayModalBody(b);
+          },
         });
         const balance = await solanaPayment.getBalance(walletAddress);
         setWalletBalance(balance);
+
+        setPayModalTitle('Payment verified ✅');
+        setPayModalBody(`Tx: ${sig.slice(0, 8)}… Unlocking reading…`);
+        setPayModalCanClose(true);
         return true;
       }
 
@@ -311,6 +357,8 @@ export default function App() {
       setPendingPayment(null);
       return true;
     } catch {
+      setPayModalVisible(false);
+      setPayModalCanClose(false);
       Alert.alert('Error', 'Could not start payment flow.');
       return false;
     }
@@ -662,6 +710,29 @@ export default function App() {
       {currentScreen === 'home' && renderHome()}
       {currentScreen === 'profile' && renderProfile()}
       {currentScreen === 'reading' && renderReading()}
+
+      {/* Payment modal */}
+      <Modal visible={payModalVisible} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <ActivityIndicator size="large" color={COLORS.gold} />
+            <Text style={styles.modalTitle}>{payModalTitle}</Text>
+            {payModalBody ? <Text style={styles.modalBody}>{payModalBody}</Text> : null}
+
+            {payModalCanClose ? (
+              <TouchableOpacity
+                style={[styles.connectButton, { marginTop: 14, marginBottom: 0, width: '100%' }]}
+                onPress={() => {
+                  setPayModalVisible(false);
+                  setPayModalCanClose(false);
+                }}
+              >
+                <Text style={styles.connectButtonText}>Close</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -781,6 +852,38 @@ const styles = StyleSheet.create({
     color: COLORS.cream,
     fontSize: 12,
     fontWeight: 'bold',
+  },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.gold,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    color: COLORS.gold,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  modalBody: {
+    color: COLORS.cream,
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+    opacity: 0.9,
   },
   menuGrid: {
     flexDirection: 'row',
