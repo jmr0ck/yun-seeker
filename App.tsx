@@ -41,6 +41,13 @@ import { solanaPayment, PRICES, type PendingPayment } from './src/lib/solanaPaym
 const DONATION_WALLET = '8HCddiWRKs8EnYL5UbpRjKJwNdpVPoaWrWKcX683V7qQ';
 const SOLANA_RPC = 'https://api.mainnet-beta.solana.com';
 
+// Pixel JRPG assets
+const ASSETS = {
+  bgHome: require('./assets/pixel_jrpg/bg_home.png'),
+  bgReading: require('./assets/pixel_jrpg/bg_reading.png'),
+  sagePortrait: require('./assets/pixel_jrpg/sage_portrait.png'),
+};
+
 // Pixel art color palette
 const COLORS = {
   darkBg: '#1a1a2e',
@@ -430,45 +437,36 @@ export default function App() {
   // Render dialogue for reading
   const renderReadingDialogue = () => {
     if (!reading) return null;
-    
+
     const npcMessages = [
-      "Ah, seeker of wisdom... The stars align in your favor today.",
-      "Let me consult the ancient texts...",
-      "The spirits reveal much to those who ask...",
-      "Your destiny unfolds before us...",
+      'Ah, seeker of wisdom... The stars align in your favor today.',
+      'Let me consult the ancient texts...',
+      'The spirits reveal much to those who ask...',
+      'Your destiny unfolds before us...',
     ];
-    
+
     return (
       <View style={styles.dialogueContainer}>
         <View style={styles.npcAvatar}>
-          <Text style={styles.npcEmoji}>🧙</Text>
+          <Image source={ASSETS.sagePortrait} style={styles.sagePortrait} />
         </View>
         <View style={styles.dialogueBox}>
           <Text style={styles.npcName}>Sage Elder</Text>
           <Text style={styles.dialogueText}>
-            {dialogueStep < npcMessages.length 
-              ? npcMessages[dialogueStep] 
-              : reading.data?.summary || "The reading reveals your path..."}
+            {dialogueStep < npcMessages.length
+              ? npcMessages[dialogueStep]
+              : reading.data?.summary || 'The reading reveals your path…'}
           </Text>
           {dialogueStep < npcMessages.length ? (
-            <TouchableOpacity 
-              style={styles.continueButton}
-              onPress={() => setDialogueStep(prev => prev + 1)}
-            >
+            <TouchableOpacity style={styles.continueButton} onPress={() => setDialogueStep((prev) => prev + 1)}>
               <Text style={styles.continueText}>▼ Continue</Text>
             </TouchableOpacity>
           ) : (
             <View style={{ gap: 10, alignItems: 'flex-end' }}>
-              <TouchableOpacity
-                style={styles.continueButton}
-                onPress={() => setShowDonate(true)}
-              >
+              <TouchableOpacity style={styles.continueButton} onPress={() => setShowDonate(true)}>
                 <Text style={styles.continueText}>🙏 Tip the Sage</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.continueButton}
-                onPress={() => setCurrentScreen('home')}
-              >
+              <TouchableOpacity style={styles.continueButton} onPress={() => setCurrentScreen('home')}>
                 <Text style={styles.continueText}>🏠 Return Home</Text>
               </TouchableOpacity>
             </View>
@@ -480,16 +478,17 @@ export default function App() {
 
   // Render home screen
   const renderHome = () => (
-    <ScrollView style={styles.content}>
-      <View style={styles.hero}>
-        <Text style={styles.heroTitle}>運</Text>
-        <Text style={styles.heroSubtitle}>yun</Text>
-        <Text style={styles.heroTagline}>Chinese Astrology on Solana</Text>
-        <Text style={styles.freeTag}>🎁 1 free request per day</Text>
-        <Text style={styles.paywallTag}>
-          {canUseFreeRequest() ? '✅ Free request available today' : `💳 Free used — next reading: ${PRICES.EXTRA_READING} SOL`}
-        </Text>
-      </View>
+    <ImageBackground source={ASSETS.bgHome} style={styles.bg} resizeMode="cover">
+      <ScrollView style={styles.content}>
+        <View style={styles.hero}>
+          <Text style={styles.heroTitle}>運</Text>
+          <Text style={styles.heroSubtitle}>yun</Text>
+          <Text style={styles.heroTagline}>Chinese Astrology on Solana</Text>
+          <Text style={styles.freeTag}>🎁 1 free request per day</Text>
+          <Text style={styles.paywallTag}>
+            {canUseFreeRequest() ? '✅ Free request available today' : `💳 Free used — next reading: ${PRICES.EXTRA_READING} SOL`}
+          </Text>
+        </View>
 
       {!walletConnected ? (
         <TouchableOpacity style={styles.connectButton} onPress={connectWallet}>
@@ -595,7 +594,7 @@ export default function App() {
               donateSol(amt);
             }}
           >
-            <Text style={styles.donateButtonText}>💛 Open Wallet to Donate</Text>
+            <Text style={styles.donateButtonText}>💛 Donate</Text>
           </TouchableOpacity>
 
           <Text style={styles.donateAddrLabel}>Donation wallet:</Text>
@@ -603,6 +602,7 @@ export default function App() {
         </View>
       ) : null}
     </ScrollView>
+    </ImageBackground>
   );
 
   // Render profile screen
@@ -801,6 +801,9 @@ const styles = StyleSheet.create({
     color: COLORS.gold,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  bg: {
+    flex: 1,
   },
   content: {
     flex: 1,
@@ -1020,9 +1023,15 @@ const styles = StyleSheet.create({
     marginRight: 12,
     borderWidth: 2,
     borderColor: COLORS.gold,
+    overflow: 'hidden',
   },
   npcEmoji: {
     fontSize: 32,
+  },
+  sagePortrait: {
+    width: 60,
+    height: 60,
+    resizeMode: 'cover',
   },
   dialogueBox: {
     flex: 1,
