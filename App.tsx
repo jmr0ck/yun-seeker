@@ -86,6 +86,7 @@ export default function App() {
   const [payModalTitle, setPayModalTitle] = useState('');
   const [payModalBody, setPayModalBody] = useState('');
   const [payModalCanClose, setPayModalCanClose] = useState(false);
+  const [payModalCanVerify, setPayModalCanVerify] = useState(false);
 
   const freeKey = () => {
     // Tie free/day to wallet when connected; otherwise device-local.
@@ -261,6 +262,7 @@ export default function App() {
     } catch (e) {
       setPayModalVisible(false);
       setPayModalCanClose(false);
+      setPayModalCanVerify(false);
       Alert.alert('Error', 'Could not start donation flow.');
     }
   };
@@ -322,43 +324,21 @@ export default function App() {
       }
 
       setPendingPayment(pending);
+
+      setPayModalVisible(true);
+      setPayModalTitle('Open wallet to pay…');
+      setPayModalBody('Send the SOL payment in your wallet, then come back here to verify.');
+      setPayModalCanClose(false);
+      setPayModalCanVerify(true);
+
       await Linking.openURL(uri);
 
-      const confirmed = await new Promise<boolean>((resolve) => {
-        Alert.alert(
-          'Payment started',
-          'After you send the SOL in your wallet, tap “Verify payment” to unlock this reading.',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-              onPress: () => resolve(false),
-            },
-            {
-              text: 'Verify payment',
-              onPress: async () => {
-                const res = await solanaPayment.verifyPaymentByReferenceWithPolling(pending, {
-                  timeoutMs: 30000,
-                  intervalMs: 2500,
-                });
-                if (res.ok) resolve(true);
-                else {
-                  Alert.alert('Not found yet', res.reason ?? 'Payment not found. Try again in a few seconds.');
-                  resolve(false);
-                }
-              },
-            },
-          ],
-        );
-      });
-
-      if (!confirmed) return false;
-
-      setPendingPayment(null);
-      return true;
+      // Wait for user to press Verify (handled by modal button)
+      return false;
     } catch {
       setPayModalVisible(false);
       setPayModalCanClose(false);
+      setPayModalCanVerify(false);
       Alert.alert('Error', 'Could not start payment flow.');
       return false;
     }
@@ -719,12 +699,58 @@ export default function App() {
             <Text style={styles.modalTitle}>{payModalTitle}</Text>
             {payModalBody ? <Text style={styles.modalBody}>{payModalBody}</Text> : null}
 
+            {payModalCanVerify && pendingPayment ? (
+              <View style={{ width: '100%', gap: 10, marginTop: 14 }}>
+                <TouchableOpacity
+                  style={[styles.connectButton, { marginBottom: 0, width: '100%' }]}
+                  onPress={async () => {
+                    setPayModalTitle('Verifying…');
+                    setPayModalBody('Checking chain for your payment (up to 30s)…');
+                    const res = await solanaPayment.verifyPaymentByReferenceWithPolling(pendingPayment, {
+                      timeoutMs: 30000,
+                      intervalMs: 2500,
+                    });
+                    if (res.ok) {
+                      setPayModalTitle('Payment verified ✅');
+                      setPayModalBody(`Tx: ${res.signature?.slice(0, 8)}…`);
+                      setPayModalCanVerify(false);
+                      setPayModalCanClose(true);
+                      setPendingPayment(null);
+                      // Refresh balance
+                      if (walletAddress) {
+                        const balance = await solanaPayment.getBalance(walletAddress);
+                        setWalletBalance(balance);
+                      }
+                    } else {
+                      setPayModalTitle('Not found yet');
+                      setPayModalBody(res.reason ?? 'Payment not found. Try again in a few seconds.');
+                    }
+                  }}
+                >
+                  <Text style={styles.connectButtonText}>Verify payment</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.navButton, { marginTop: 0, width: '100%', borderColor: 'rgba(255,255,255,0.25)' }]}
+                  onPress={() => {
+                    setPayModalVisible(false);
+                    setPayModalCanVerify(false);
+                    setPayModalCanClose(false);
+                    setPendingPayment(null);
+                  }}
+                >
+                  <Text style={styles.navButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
             {payModalCanClose ? (
               <TouchableOpacity
                 style={[styles.connectButton, { marginTop: 14, marginBottom: 0, width: '100%' }]}
                 onPress={() => {
                   setPayModalVisible(false);
                   setPayModalCanClose(false);
+                  setPayModalCanVerify(false);
                 }}
               >
                 <Text style={styles.connectButtonText}>Close</Text>
