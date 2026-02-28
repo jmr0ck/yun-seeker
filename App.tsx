@@ -6,6 +6,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { transact } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js';
+import { PublicKey } from '@solana/web3.js';
 import {
   StyleSheet,
   View,
@@ -51,6 +53,7 @@ export default function App() {
   // User state
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
+  const [walletAuthToken, setWalletAuthToken] = useState<string | null>(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [points, setPoints] = useState(0);
   const [lastFreeRequest, setLastFreeRequest] = useState<Date | null>(null);
@@ -101,30 +104,61 @@ export default function App() {
     return now.toDateString() !== lastDate.toDateString();
   };
 
-  // Connect wallet (simulated for demo - in production use Solana Mobile SDK)
+  // Connect wallet (Solana Mobile Wallet Adapter)
   const connectWallet = async () => {
     try {
-      // Simulate wallet connection
-      setWalletConnected(true);
-      setWalletAddress('7xKXtg2CW87d97TXJSDpbD5iBk8RV1fYSErQQN7G4BQ');
-      setPoints(10); // Welcome bonus
-      
-      // Get balance
-      const balance = await solanaPayment.getBalance(walletAddress);
-      setWalletBalance(balance);
-      
-      Alert.alert(
-        'Wallet Connected! 🐉', 
-        'Welcome to 運 yun!\n\n🎁 10 FREE points\n🎯 1 FREE reading daily\n\nSolana balance: ' + balance.toFixed(4) + ' SOL'
+      const auth = await transact((wallet) =>
+        wallet.authorize({
+          cluster: 'mainnet-beta',
+          identity: {
+            name: 'yun (運)',
+            uri: 'https://github.com/jmr0ck/yun-seeker',
+          },
+        }),
       );
-    } catch (error) {
-      Alert.alert('Error', 'Failed to connect wallet');
+
+      const account = auth.accounts?.[0];
+      if (!account?.address) {
+        Alert.alert('Wallet Error', 'No account returned by wallet.');
+        return;
+      }
+
+      const pubkey = new PublicKey(Buffer.from(account.address, 'base64')).toBase58();
+
+      setWalletConnected(true);
+      setWalletAddress(pubkey);
+      setWalletAuthToken(auth.auth_token);
+
+      // Get balance
+      const balance = await solanaPayment.getBalance(pubkey);
+      setWalletBalance(balance);
+
+      Alert.alert(
+        'Wallet Connected',
+        `Welcome to 運 yun!\n\n🎯 1 free request/day\n\nAddress: ${solanaPayment.formatAddress(pubkey)}\nBalance: ${balance.toFixed(4)} SOL`,
+      );
+    } catch (error: any) {
+      const msg = String(error?.message ?? error);
+      if (msg.toLowerCase().includes('wallet')) {
+        Alert.alert('Wallet Not Found', 'No Solana Mobile wallet found. Install a Seeker-compatible wallet and try again.');
+      } else {
+        Alert.alert('Error', 'Failed to connect wallet.');
+      }
     }
   };
 
-  const disconnectWallet = () => {
+  const disconnectWallet = async () => {
+    try {
+      if (walletAuthToken) {
+        await transact((wallet) => wallet.deauthorize({ auth_token: walletAuthToken }));
+      }
+    } catch {
+      // ignore
+    }
+
     setWalletConnected(false);
     setWalletAddress('');
+    setWalletAuthToken(null);
     setWalletBalance(0);
   };
 
