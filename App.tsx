@@ -3,7 +3,7 @@ import { Alert, Linking, SafeAreaView, Share, StatusBar, StyleSheet, Text, Touch
 import { transact } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js';
 import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import { Luck } from './src/lib/luck';
+import { FinalBossEngine } from './src/lib/finalBossEngine';
 import { COLORS } from './src/app/constants';
 import type { Profile, ReadingResult, Screen } from './src/app/types';
 import { inferTimezone, mapQuestionType, parseHour24, validateDate, validatePlace, validateTime12h } from './src/app/utils';
@@ -143,47 +143,22 @@ export default function App() {
       const hour = parseHour24(birthTime);
       const birthData = { year: y, month: m, day: d, hour, timezone: 'Asia/Hong_Kong' as const };
       const type = mapQuestionType(q);
-      const base = Luck.read(birthData);
-      let result: any = base;
-      let highlights: string[] = [];
-      let confidence: 'Low' | 'Medium' | 'High' = 'Medium';
-
-      if (type === 'love') {
-        result = Luck.compatibility(birthData, birthData);
-        highlights = [
-          `Compatibility score: ${result?.score ?? 'N/A'}`,
-          'Best progress comes from timing + communication rhythm.',
-          'Avoid rushed commitment in low-energy windows.',
-        ];
-      } else if (type === 'lottery') {
-        const lucky = Luck.getLuckyElements(base.details.dayMaster);
-        result = { summary: 'Lucky profile generated for your day master', lucky, baseSummary: base.summary };
-        highlights = [
-          `Lucky numbers: ${(lucky?.numbers || []).join(', ')}`,
-          `Lucky colors: ${(lucky?.colors || []).join(', ')}`,
-          `Lucky directions: ${(lucky?.directions || []).join(', ')}`,
-        ];
-      } else {
-        result = { ...base, focus: type, ask: q };
-        highlights = [
-          `Day master: ${base.details.dayMaster}`,
-          `Strengths: ${base.details.strengths?.join(', ') || 'N/A'}`,
-          `Watchouts: ${base.details.weaknesses?.join(', ') || 'N/A'}`,
-        ];
-      }
-
-      if (q.toLowerCase().includes('where') || q.toLowerCase().includes('march')) confidence = 'Low';
-      else if (type === 'decision' || type === 'finance') confidence = 'Medium';
-      else confidence = 'High';
+      const deep = FinalBossEngine.generate(q, birthData);
 
       const report: ReadingResult = {
-        title: `${type.toUpperCase()} Insight`,
-        summary: (result && (result.summary || result.reason)) || 'Your personalized reading is ready.',
-        data: result,
+        title: deep.title,
+        summary: deep.summary,
+        data: {
+          ...deep.payload,
+          actionPlan: deep.actionPlan,
+          risks: deep.risks,
+          timing: deep.timing,
+          citations: deep.citations,
+        },
         askedAt: new Date().toISOString(),
         question: q,
-        highlights,
-        confidence,
+        highlights: deep.highlights,
+        confidence: deep.confidence,
         focus: type,
       };
 
