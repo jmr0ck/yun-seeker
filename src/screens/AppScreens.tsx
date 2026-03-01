@@ -175,6 +175,12 @@ export function QuestionsScreen({ selectedQuestion, setSelectedQuestion, customQ
 }
 
 export function ReadingScreen({ reading, onShare, onAskAgain, onBack, t, language }: { reading: ReadingResult | null; onShare: () => void; onAskAgain: () => void; onBack: () => void; t: TDict; language: AppLanguage }) {
+  const confidenceLabel = reading?.confidence === 'High'
+    ? t.confidenceHigh
+    : reading?.confidence === 'Low'
+      ? t.confidenceLow
+      : t.confidenceMedium;
+
   return (
     <ScrollView contentContainerStyle={styles.scrollCard}>
       <Text style={styles.h1}>{t.yourReport}</Text>
@@ -185,7 +191,7 @@ export function ReadingScreen({ reading, onShare, onAskAgain, onBack, t, languag
         <Text style={styles.summary}>{reading?.summary || t.noSummary}</Text>
         <View style={styles.rowWrap}>
           <Text style={styles.chip}>{t.focus}: {reading?.focus}</Text>
-          <Text style={[styles.chip, reading?.confidence === 'High' ? styles.chipOk : reading?.confidence === 'Low' ? styles.chipWarn : null]}>{t.confidence}: {reading?.confidence}</Text>
+          <Text style={[styles.chip, reading?.confidence === 'High' ? styles.chipOk : reading?.confidence === 'Low' ? styles.chipWarn : null]}>{t.confidence}: {confidenceLabel}</Text>
         </View>
       </View>
       <View style={styles.card}>
