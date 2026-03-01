@@ -216,9 +216,9 @@ export default function App() {
         </View>
       </View>
 
-      {screen === 'welcome' && <WelcomeScreen onStart={() => setScreen('auth')} />}
-      {screen === 'auth' && <AuthScreen email={email} setEmail={setEmail} onContinue={handleAuth} />}
-      {screen === 'wallet' && <WalletScreen onConnect={connectWallet} onFallback={openWalletFallback} />}
+      {screen === 'welcome' && <WelcomeScreen onStart={() => setScreen('auth')} t={I18N[language]} />}
+      {screen === 'auth' && <AuthScreen email={email} setEmail={setEmail} onContinue={handleAuth} t={I18N[language]} />}
+      {screen === 'wallet' && <WalletScreen onConnect={connectWallet} onFallback={openWalletFallback} t={I18N[language]} />}
       {screen === 'profile' && (
         <ProfileScreen
           birthDate={birthDate} setBirthDate={setBirthDate}
@@ -226,12 +226,13 @@ export default function App() {
           birthPlace={birthPlace} setBirthPlace={setBirthPlace}
           currentLocation={currentLocation} setCurrentLocation={setCurrentLocation}
           onReview={goProfileConfirm}
+          t={I18N[language]}
         />
       )}
-      {screen === 'profileConfirm' && <ProfileConfirmScreen profile={activeProfile} onConfirm={saveProfileNow} onEdit={() => setScreen('profile')} />}
-      {screen === 'dashboard' && <DashboardScreen profile={activeProfile} history={history} onAsk={() => setScreen('questions')} onEdit={() => setScreen('profile')} onOpenHistory={(r) => { setReading(r); setScreen('reading'); }} />}
-      {screen === 'questions' && <QuestionsScreen selectedQuestion={selectedQuestion} setSelectedQuestion={setSelectedQuestion} customQuestion={customQuestion} setCustomQuestion={setCustomQuestion} onGenerate={runCalculation} />}
-      {screen === 'reading' && <ReadingScreen reading={reading} onShare={shareReading} onAskAgain={() => setScreen('questions')} onBack={() => setScreen('dashboard')} />}
+      {screen === 'profileConfirm' && <ProfileConfirmScreen profile={activeProfile} onConfirm={saveProfileNow} onEdit={() => setScreen('profile')} t={I18N[language]} />}
+      {screen === 'dashboard' && <DashboardScreen profile={activeProfile} history={history} onAsk={() => setScreen('questions')} onEdit={() => setScreen('profile')} onOpenHistory={(r) => { setReading(r); setScreen('reading'); }} t={I18N[language]} />}
+      {screen === 'questions' && <QuestionsScreen selectedQuestion={selectedQuestion} setSelectedQuestion={setSelectedQuestion} customQuestion={customQuestion} setCustomQuestion={setCustomQuestion} onGenerate={runCalculation} t={I18N[language]} language={language} />}
+      {screen === 'reading' && <ReadingScreen reading={reading} onShare={shareReading} onAskAgain={() => setScreen('questions')} onBack={() => setScreen('dashboard')} t={I18N[language]} />}
 
       <View style={styles.footerNav}>
         {isSignedIn && (
