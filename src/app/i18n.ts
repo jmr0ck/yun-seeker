@@ -54,6 +54,9 @@ export type Dict = {
   confidence: string;
   keyHighlights: string;
   detailedOutput: string;
+  actionPlan: string;
+  riskWatch: string;
+  timingWindows: string;
   shareExport: string;
   askAnother: string;
   backDashboard: string;
@@ -69,7 +72,7 @@ const EN: Dict = {
   confirmProfile: 'Confirm Profile', parsedProfile: 'Parsed Profile', date: 'Date', time: 'Time', birthPlace: 'Birth place', currentLocation: 'Current location', timezone: 'Timezone', confirmSave: 'Confirm & Save', edit: 'Edit',
   dashboardTitle: 'User Dashboard', storedProfile: 'Stored Profile', askQuestion: 'Ask a Question', editProfile: 'Edit Profile', recentReports: 'Recent Reports', noReports: 'No reports yet.', qPrefix: 'Q',
   questionsTitle: 'Ask a Question', customQuestion: 'Custom question', customQuestionPlaceholder: 'e.g. Where will I meet my true love in March?', generateReport: 'Generate Report',
-  yourReport: 'Your Report', noSummary: 'No summary.', focus: 'Focus', confidence: 'Confidence', keyHighlights: 'Key Highlights', detailedOutput: 'Detailed Output', shareExport: 'Share / Export Report', askAnother: 'Ask Another Question', backDashboard: 'Back to Dashboard',
+  yourReport: 'Your Report', noSummary: 'No summary.', focus: 'Focus', confidence: 'Confidence', keyHighlights: 'Key Highlights', detailedOutput: 'Detailed Output', actionPlan: 'Action Plan', riskWatch: 'Risk Watch', timingWindows: 'Timing Windows', shareExport: 'Share / Export Report', askAnother: 'Ask Another Question', backDashboard: 'Back to Dashboard',
 };
 
 export const RTL_LANGUAGES: AppLanguage[] = [];
@@ -86,7 +89,7 @@ export const I18N: Record<AppLanguage, Dict> = {
     date: '日期', time: '時間', birthPlace: '出生地', currentLocation: '現居地',
     confirmSave: '確認並儲存', edit: '編輯', dashboardTitle: '用戶主頁', storedProfile: '已儲存檔案', askQuestion: '開始提問', editProfile: '編輯檔案', recentReports: '最近報告', noReports: '暫無報告。',
     questionsTitle: '提出問題', customQuestion: '自訂問題', generateReport: '生成報告', yourReport: '你的報告',
-    keyHighlights: '重點摘要', detailedOutput: '詳細輸出', shareExport: '分享 / 匯出報告', askAnother: '再問一題', backDashboard: '返回主頁',
+    keyHighlights: '重點摘要', detailedOutput: '詳細輸出', actionPlan: '行動計劃', riskWatch: '風險提示', timingWindows: '時機視窗', shareExport: '分享 / 匯出報告', askAnother: '再問一題', backDashboard: '返回主頁',
   },
   'zh-CN': {
     ...EN,
@@ -98,7 +101,7 @@ export const I18N: Record<AppLanguage, Dict> = {
     date: '日期', time: '时间', birthPlace: '出生地', currentLocation: '现居地',
     confirmSave: '确认并保存', edit: '编辑', dashboardTitle: '用户主页', storedProfile: '已保存档案', askQuestion: '开始提问', editProfile: '编辑档案', recentReports: '最近报告', noReports: '暂无报告。',
     questionsTitle: '提出问题', customQuestion: '自定义问题', generateReport: '生成报告', yourReport: '你的报告',
-    keyHighlights: '重点摘要', detailedOutput: '详细输出', shareExport: '分享 / 导出报告', askAnother: '再问一题', backDashboard: '返回主页',
+    keyHighlights: '重点摘要', detailedOutput: '详细输出', actionPlan: '行动计划', riskWatch: '风险提示', timingWindows: '时机窗口', shareExport: '分享 / 导出报告', askAnother: '再问一题', backDashboard: '返回主页',
   },
   ja: { ...EN, dashboard: 'ダッシュボード', questions: '質問', profile: 'プロフィール', language: '言語', welcomeTitle: 'yun-seeker へようこそ', getStarted: '開始', authTitle: 'サインイン / サインアップ', continue: '続行', walletTitle: 'SOLウォレット接続', connectSeeker: 'Seekerウォレットを接続', profileSetup: 'プロフィール設定', questionsTitle: '質問する', yourReport: 'レポート', backDashboard: 'ダッシュボードへ戻る' },
   ko: { ...EN, dashboard: '대시보드', questions: '질문', profile: '프로필', language: '언어', welcomeTitle: 'yun-seeker에 오신 것을 환영합니다', getStarted: '시작하기', authTitle: '로그인 / 회원가입', continue: '계속', walletTitle: 'SOL 지갑 연결', connectSeeker: 'Seeker 지갑 연결', profileSetup: '프로필 설정', questionsTitle: '질문하기', yourReport: '리포트', backDashboard: '대시보드로 돌아가기' },

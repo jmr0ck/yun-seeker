@@ -168,6 +168,18 @@ export function ReadingScreen({ reading, onShare, onAskAgain, onBack, t }: { rea
         {(reading?.highlights || []).map((h, idx) => <Text key={idx} style={styles.text}>• {h}</Text>)}
       </View>
       <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.actionPlan}</Text>
+        {((reading?.data?.actionPlan as string[]) || []).map((a, i) => <Text key={`a-${i}`} style={styles.text}>• {a}</Text>)}
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.riskWatch}</Text>
+        {((reading?.data?.risks as string[]) || []).map((r, i) => <Text key={`r-${i}`} style={styles.text}>• {r}</Text>)}
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.timingWindows}</Text>
+        {((reading?.data?.timing as string[]) || []).map((w, i) => <Text key={`w-${i}`} style={styles.text}>• {w}</Text>)}
+      </View>
+      <View style={styles.card}>
         <Text style={styles.cardTitle}>{t.detailedOutput}</Text>
         <Text style={styles.code}>{JSON.stringify(reading?.data ?? {}, null, 2)}</Text>
       </View>
