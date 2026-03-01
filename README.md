@@ -59,6 +59,8 @@ A mobile astrology app built on Solana Mobile, offering personalized 八字, 紫
 
 ## ⚙️ Local Setup
 
+For release signing + APK build, see `RELEASE_SIGNING.md`.
+
 1. Install dependencies
    - `npm install`
 2. Run app
