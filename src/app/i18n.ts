@@ -3,7 +3,7 @@ export type AppLanguage = 'en' | 'zh-HK' | 'zh-CN' | 'ja' | 'ko' | 'es';
 export const LANGUAGE_STORAGE_KEY = 'yun:language:v1';
 export const SUPPORTED_LANGUAGES: AppLanguage[] = ['en', 'zh-HK', 'zh-CN', 'ja', 'ko', 'es'];
 
-type Dict = {
+export type Dict = {
   dashboard: string;
   questions: string;
   profile: string;
@@ -71,6 +71,8 @@ const EN: Dict = {
   questionsTitle: 'Ask a Question', customQuestion: 'Custom question', customQuestionPlaceholder: 'e.g. Where will I meet my true love in March?', generateReport: 'Generate Report',
   yourReport: 'Your Report', noSummary: 'No summary.', focus: 'Focus', confidence: 'Confidence', keyHighlights: 'Key Highlights', detailedOutput: 'Detailed Output', shareExport: 'Share / Export Report', askAnother: 'Ask Another Question', backDashboard: 'Back to Dashboard',
 };
+
+export const RTL_LANGUAGES: AppLanguage[] = [];
 
 export const I18N: Record<AppLanguage, Dict> = {
   en: EN,

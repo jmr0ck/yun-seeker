@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Linking, SafeAreaView, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Modal, SafeAreaView, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { transact } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js';
 import { PublicKey } from '@solana/web3.js';
@@ -9,7 +9,7 @@ import { COLORS } from './src/app/constants';
 import type { Profile, ReadingResult, Screen } from './src/app/types';
 import { inferTimezone, mapQuestionType, parseHour24, validateDate, validatePlace, validateTime12h } from './src/app/utils';
 import { loadBootstrap, saveEmail as persistEmail, saveProfile as persistProfile, saveReports as persistReports } from './src/app/storage';
-import { AppLanguage, I18N, LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from './src/app/i18n';
+import { AppLanguage, I18N, LANGUAGE_STORAGE_KEY, RTL_LANGUAGES, SUPPORTED_LANGUAGES } from './src/app/i18n';
 import {
   AuthScreen,
   DashboardScreen,
@@ -30,6 +30,7 @@ export default function App() {
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [language, setLanguage] = useState<AppLanguage>('en');
+  const [langModalVisible, setLangModalVisible] = useState(false);
 
   const [birthDate, setBirthDate] = useState('');
   const [birthTime, setBirthTime] = useState('');
@@ -47,6 +48,7 @@ export default function App() {
     () => ({ birthDate, birthTime, birthPlace, currentLocation, timezone }),
     [birthDate, birthTime, birthPlace, currentLocation, timezone],
   );
+  const isRTL = RTL_LANGUAGES.includes(language);
 
   useEffect(() => {
     (async () => {
@@ -82,11 +84,19 @@ export default function App() {
     setScreen('wallet');
   };
 
-  const toggleLanguage = async () => {
-    const idx = SUPPORTED_LANGUAGES.indexOf(language);
-    const next: AppLanguage = SUPPORTED_LANGUAGES[(idx + 1) % SUPPORTED_LANGUAGES.length];
+  const setAppLanguage = async (next: AppLanguage) => {
     setLanguage(next);
     await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, next);
+    setLangModalVisible(false);
+  };
+
+  const languageNames: Record<AppLanguage, string> = {
+    en: 'English',
+    'zh-HK': '繁體中文（香港）',
+    'zh-CN': '简体中文',
+    ja: '日本語',
+    ko: '한국어',
+    es: 'Español',
   };
 
   const connectWallet = async () => {
@@ -203,18 +213,34 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { direction: isRTL ? 'rtl' : 'ltr' }]}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
       <View style={styles.header}>
         <Text style={styles.logo}>運 yun-seeker</Text>
         <View style={{ alignItems: 'flex-end' }}>
-          <TouchableOpacity onPress={toggleLanguage}>
-            <Text style={styles.langSwitch}>{I18N[language].language}: {language}</Text>
+          <TouchableOpacity onPress={() => setLangModalVisible(true)}>
+            <Text style={styles.langSwitch}>{I18N[language].language}: {languageNames[language]}</Text>
           </TouchableOpacity>
           {isSignedIn ? <Text style={styles.pill}>{email}</Text> : <Text style={styles.pillMuted}>Not signed in</Text>}
           {walletConnected ? <Text style={styles.pill}>Wallet: {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}</Text> : <Text style={styles.pillMuted}>Wallet not connected</Text>}
         </View>
       </View>
+
+      <Modal visible={langModalVisible} transparent animationType="fade" onRequestClose={() => setLangModalVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{I18N[language].language}</Text>
+            {SUPPORTED_LANGUAGES.map((lang) => (
+              <TouchableOpacity key={lang} style={[styles.modalOption, language === lang && styles.modalOptionActive]} onPress={() => setAppLanguage(lang)}>
+                <Text style={styles.modalOptionText}>{languageNames[lang]}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.btnGhost} onPress={() => setLangModalVisible(false)}>
+              <Text style={styles.btnGhostText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {screen === 'welcome' && <WelcomeScreen onStart={() => setScreen('auth')} t={I18N[language]} />}
       {screen === 'auth' && <AuthScreen email={email} setEmail={setEmail} onContinue={handleAuth} t={I18N[language]} />}
@@ -256,4 +282,10 @@ const styles = StyleSheet.create({
   pillMuted: { color: COLORS.muted, fontSize: 11 },
   footerNav: { paddingVertical: 10, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: '#2b2f4a', flexDirection: 'row', justifyContent: 'space-around' },
   footerLink: { color: COLORS.muted, fontSize: 12 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalCard: { backgroundColor: COLORS.card, borderRadius: 14, padding: 16, borderColor: '#3a4066', borderWidth: 1 },
+  modalTitle: { color: COLORS.text, fontSize: 18, fontWeight: '800', marginBottom: 12 },
+  modalOption: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, marginBottom: 8, backgroundColor: '#252a49' },
+  modalOptionActive: { borderWidth: 1, borderColor: COLORS.accent },
+  modalOptionText: { color: COLORS.text, fontSize: 14 },
 });
