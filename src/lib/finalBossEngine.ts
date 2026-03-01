@@ -13,6 +13,7 @@ export type FinalBossReport = {
   risks: string[];
   timing: string[];
   citations: string[];
+  reasoning: string[];
   payload: any;
 };
 
@@ -176,11 +177,17 @@ export class FinalBossEngine {
     const actionPlan = knowledge.map((k) => k.action);
     const risks = knowledge.map((k) => k.risk);
     const timing = knowledge.map((k) => k.timingHint);
-
     let confidence: 'Low' | 'Medium' | 'High' = 'Medium';
     const uncertaintyWords = ['where', 'exactly', 'specific date', 'guarantee'];
     if (uncertaintyWords.some((w) => question.toLowerCase().includes(w))) confidence = 'Low';
     else if (topic === 'career' || topic === 'finance') confidence = 'High';
+
+    const reasoning = [
+      `Topic detected: ${topic}`,
+      `Day master assessed: ${base.details.dayMaster}`,
+      `Matched knowledge rules: ${knowledge.map((k) => k.id).join(', ') || 'none'}`,
+      `Confidence basis: ${confidence === 'High' ? 'structured domain fit' : confidence === 'Low' ? 'high uncertainty question wording' : 'mixed-signal context'}`,
+    ];
 
     const summary = `【${topic.toUpperCase()}】${pack.analysisPrefix}: ${base.summary} ${pack.disciplineLine}`;
     const title = `${topic.toUpperCase()} ${pack.titleSuffix}`;
@@ -194,6 +201,7 @@ export class FinalBossEngine {
       risks: risks.length ? risks : [pack.fallbackRisk],
       timing: timing.length ? timing : [pack.fallbackTiming],
       citations: knowledge.map((k) => `KB:${k.id}`),
+      reasoning,
       payload,
     };
   }

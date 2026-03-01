@@ -211,6 +211,13 @@ export function ReadingScreen({ reading, onShare, onAskAgain, onBack, t, languag
         {((reading?.data?.timing as string[]) || []).map((w, i) => <Text key={`w-${i}`} style={styles.text}>• {w}</Text>)}
       </View>
       <View style={styles.card}>
+        <Text style={styles.cardTitle}>{t.evidence}</Text>
+        <Text style={styles.text}>{t.howDerived}</Text>
+        {((reading?.data?.reasoning as string[]) || []).map((r, i) => <Text key={`reason-${i}`} style={styles.text}>• {r}</Text>)}
+        <Text style={[styles.text, { marginTop: 8 }]}>{t.citations}</Text>
+        {((reading?.data?.citations as string[]) || []).map((c, i) => <Text key={`cit-${i}`} style={styles.text}>• {c}</Text>)}
+      </View>
+      <View style={styles.card}>
         <Text style={styles.cardTitle}>{t.detailedOutput}</Text>
         <Text style={styles.code}>{JSON.stringify(reading?.data ?? {}, null, 2)}</Text>
       </View>

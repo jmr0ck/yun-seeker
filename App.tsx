@@ -189,6 +189,7 @@ export default function App() {
           risks: deep.risks,
           timing: deep.timing,
           citations: deep.citations,
+          reasoning: deep.reasoning,
         },
         askedAt: new Date().toISOString(),
         question: q,
