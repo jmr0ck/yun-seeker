@@ -54,8 +54,34 @@ A mobile astrology app built on Solana Mobile, offering personalized 八字, 紫
 
 ## 🔗 Links
 
-- **GitHub:** https://github.com/jmr0ck/yun
+- **GitHub:** https://github.com/jmr0ck/yun-seeker
 - **App:** yun (運) — Chinese Astrology
+
+## ⚙️ Local Setup
+
+1. Install dependencies
+   - `npm install`
+2. Run app
+   - `npm run start`
+
+## ☁️ Optional Supabase Sync
+
+The app is local-first and works without backend config.
+
+To enable cloud sync for profile/report metadata:
+
+1. Copy env template
+   - `cp .env.example .env`
+2. Fill these values:
+   - `EXPO_PUBLIC_SUPABASE_URL`
+   - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+3. Apply schema in Supabase SQL editor:
+   - `supabase/schema.sql`
+
+### Current behavior
+
+- If env vars are missing: AsyncStorage only
+- If env vars are present: AsyncStorage + best-effort Supabase upsert
 
 ## 📅 Timeline
 
