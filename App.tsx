@@ -55,7 +55,20 @@ export default function App() {
       try {
         const boot = await loadBootstrap();
         const savedLang = (await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY)) as AppLanguage | null;
-        if (savedLang && SUPPORTED_LANGUAGES.includes(savedLang)) setLanguage(savedLang);
+        if (savedLang && SUPPORTED_LANGUAGES.includes(savedLang)) {
+          setLanguage(savedLang);
+        } else {
+          const localeRaw = Intl.DateTimeFormat().resolvedOptions().locale || 'en';
+          const locale = localeRaw.toLowerCase();
+          let detected: AppLanguage = 'en';
+          if (locale.startsWith('zh-hk') || locale.startsWith('zh-tw') || locale.startsWith('zh-mo')) detected = 'zh-HK';
+          else if (locale.startsWith('zh')) detected = 'zh-CN';
+          else if (locale.startsWith('ja')) detected = 'ja';
+          else if (locale.startsWith('ko')) detected = 'ko';
+          else if (locale.startsWith('es')) detected = 'es';
+          setLanguage(detected);
+          await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, detected);
+        }
         if (boot.email) {
           setEmail(boot.email);
           setIsSignedIn(true);
