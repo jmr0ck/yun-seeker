@@ -143,7 +143,7 @@ const LANG_PACK: Record<Lang, {
 };
 
 export class FinalBossEngine {
-  static generate(question: string, birthData: BirthData, lang: Lang = 'en'): FinalBossReport {
+  static generate(question: string, birthData: BirthData, lang: Lang = 'en', depth: 'quick' | 'master' = 'master'): FinalBossReport {
     const topic = mapTopic(question);
     const base = Luck.read(birthData);
     const matched = matchKnowledge(topic, question);
@@ -157,13 +157,13 @@ export class FinalBossEngine {
     }
 
     const pack = LANG_PACK[lang] || LANG_PACK.en;
-    const knowledge = matched.slice(0, 3);
+    const knowledge = matched.slice(0, depth === 'quick' ? 2 : 5);
     const highlights = [
       `Day Master: ${base.details.dayMaster}`,
       `${pack.strengthsLabel}: ${base.details.strengths.join(', ') || 'N/A'}`,
       `${pack.weaknessesLabel}: ${base.details.weaknesses.join(', ') || 'N/A'}`,
       ...knowledge.map((k) => k.insight),
-    ].slice(0, 6);
+    ].slice(0, depth === 'quick' ? 4 : 8);
 
     if (topic === 'love' && payload.compatibility?.score != null) {
       highlights.unshift(`${pack.compatibilityLabel}: ${new Intl.NumberFormat(localeTag(lang)).format(payload.compatibility.score)}`);
@@ -183,6 +183,7 @@ export class FinalBossEngine {
     else if (topic === 'career' || topic === 'finance') confidence = 'High';
 
     const reasoning = [
+      `Depth mode: ${depth}`,
       `Topic detected: ${topic}`,
       `Day master assessed: ${base.details.dayMaster}`,
       `Matched knowledge rules: ${knowledge.map((k) => k.id).join(', ') || 'none'}`,

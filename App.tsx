@@ -41,6 +41,7 @@ export default function App() {
 
   const [selectedQuestion, setSelectedQuestion] = useState('');
   const [customQuestion, setCustomQuestion] = useState('');
+  const [depthMode, setDepthMode] = useState<'quick' | 'master'>('master');
   const [reading, setReading] = useState<ReadingResult | null>(null);
   const [history, setHistory] = useState<ReadingResult[]>([]);
 
@@ -178,7 +179,7 @@ export default function App() {
       const hour = parseHour24(birthTime);
       const birthData = { year: y, month: m, day: d, hour, timezone: 'Asia/Hong_Kong' as const };
       const type = mapQuestionType(q);
-      const deep = FinalBossEngine.generate(q, birthData, language);
+      const deep = FinalBossEngine.generate(q, birthData, language, depthMode);
 
       const report: ReadingResult = {
         title: deep.title,
@@ -234,6 +235,9 @@ export default function App() {
         <View style={{ alignItems: 'flex-end' }}>
           <TouchableOpacity onPress={() => setLangModalVisible(true)}>
             <Text style={styles.langSwitch}>{I18N[language].language}: {languageNames[language]}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setDepthMode(depthMode === 'master' ? 'quick' : 'master')}>
+            <Text style={styles.depthSwitch}>Depth: {depthMode.toUpperCase()}</Text>
           </TouchableOpacity>
           {isSignedIn ? <Text style={styles.pill}>{email}</Text> : <Text style={styles.pillMuted}>Not signed in</Text>}
           {walletConnected ? <Text style={styles.pill}>Wallet: {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}</Text> : <Text style={styles.pillMuted}>Wallet not connected</Text>}
@@ -292,6 +296,7 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#2b2f4a', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   logo: { color: COLORS.accent, fontWeight: '800', fontSize: 18 },
   langSwitch: { color: COLORS.accent, fontSize: 11, marginBottom: 4 },
+  depthSwitch: { color: '#8ec5ff', fontSize: 11, marginBottom: 4 },
   pill: { color: COLORS.ok, fontSize: 11 },
   pillMuted: { color: COLORS.muted, fontSize: 11 },
   footerNav: { paddingVertical: 10, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: '#2b2f4a', flexDirection: 'row', justifyContent: 'space-around' },
