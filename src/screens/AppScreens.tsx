@@ -8,6 +8,30 @@ type TDict = {
   [k: string]: string;
 };
 
+function toLocaleTag(lang: AppLanguage) {
+  const map: Record<AppLanguage, string> = {
+    en: 'en-US',
+    'zh-HK': 'zh-HK',
+    'zh-CN': 'zh-CN',
+    ja: 'ja-JP',
+    ko: 'ko-KR',
+    es: 'es-ES',
+  };
+  return map[lang] || 'en-US';
+}
+
+function formatLocalDate(iso: string, lang: AppLanguage) {
+  try {
+    return new Date(iso).toLocaleDateString(toLocaleTag(lang), {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return new Date(iso).toLocaleDateString();
+  }
+}
+
 function localizeQuestionLabel(label: string, lang: AppLanguage) {
   const map: Record<string, Record<AppLanguage, string>> = {
     'Love outlook': {
@@ -104,7 +128,7 @@ export function ProfileConfirmScreen({ profile, onConfirm, onEdit, t }: { profil
   );
 }
 
-export function DashboardScreen({ profile, history, onAsk, onEdit, onOpenHistory, t }: { profile: Profile; history: ReadingResult[]; onAsk: () => void; onEdit: () => void; onOpenHistory: (r: ReadingResult) => void; t: TDict }) {
+export function DashboardScreen({ profile, history, onAsk, onEdit, onOpenHistory, t, language }: { profile: Profile; history: ReadingResult[]; onAsk: () => void; onEdit: () => void; onOpenHistory: (r: ReadingResult) => void; t: TDict; language: AppLanguage }) {
   return (
     <ScrollView contentContainerStyle={styles.scrollCard}>
       <Text style={styles.h1}>{t.dashboardTitle}</Text>
@@ -124,7 +148,7 @@ export function DashboardScreen({ profile, history, onAsk, onEdit, onOpenHistory
           <TouchableOpacity key={`${r.askedAt}-${i}`} style={styles.historyItem} onPress={() => onOpenHistory(r)}>
             <View style={styles.rowBetween}>
               <Text style={styles.text}>• {r.title}</Text>
-              <Text style={styles.muted}>{new Date(r.askedAt).toLocaleDateString()}</Text>
+              <Text style={styles.muted}>{formatLocalDate(r.askedAt, language)}</Text>
             </View>
             <Text style={styles.muted} numberOfLines={1}>{t.qPrefix}: {r.question}</Text>
           </TouchableOpacity>
@@ -150,13 +174,14 @@ export function QuestionsScreen({ selectedQuestion, setSelectedQuestion, customQ
   );
 }
 
-export function ReadingScreen({ reading, onShare, onAskAgain, onBack, t }: { reading: ReadingResult | null; onShare: () => void; onAskAgain: () => void; onBack: () => void; t: TDict }) {
+export function ReadingScreen({ reading, onShare, onAskAgain, onBack, t, language }: { reading: ReadingResult | null; onShare: () => void; onAskAgain: () => void; onBack: () => void; t: TDict; language: AppLanguage }) {
   return (
     <ScrollView contentContainerStyle={styles.scrollCard}>
       <Text style={styles.h1}>{t.yourReport}</Text>
       <View style={styles.heroCard}>
         <Text style={styles.heroTitle}>{reading?.title}</Text>
         <Text style={styles.muted}>{t.qPrefix}: {reading?.question}</Text>
+        <Text style={styles.muted}>{t.date}: {reading?.askedAt ? formatLocalDate(reading.askedAt, language) : '-'}</Text>
         <Text style={styles.summary}>{reading?.summary || t.noSummary}</Text>
         <View style={styles.rowWrap}>
           <Text style={styles.chip}>{t.focus}: {reading?.focus}</Text>

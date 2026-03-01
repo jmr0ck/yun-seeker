@@ -269,9 +269,9 @@ export default function App() {
         />
       )}
       {screen === 'profileConfirm' && <ProfileConfirmScreen profile={activeProfile} onConfirm={saveProfileNow} onEdit={() => setScreen('profile')} t={I18N[language]} />}
-      {screen === 'dashboard' && <DashboardScreen profile={activeProfile} history={history} onAsk={() => setScreen('questions')} onEdit={() => setScreen('profile')} onOpenHistory={(r) => { setReading(r); setScreen('reading'); }} t={I18N[language]} />}
+      {screen === 'dashboard' && <DashboardScreen profile={activeProfile} history={history} onAsk={() => setScreen('questions')} onEdit={() => setScreen('profile')} onOpenHistory={(r) => { setReading(r); setScreen('reading'); }} t={I18N[language]} language={language} />}
       {screen === 'questions' && <QuestionsScreen selectedQuestion={selectedQuestion} setSelectedQuestion={setSelectedQuestion} customQuestion={customQuestion} setCustomQuestion={setCustomQuestion} onGenerate={runCalculation} t={I18N[language]} language={language} />}
-      {screen === 'reading' && <ReadingScreen reading={reading} onShare={shareReading} onAskAgain={() => setScreen('questions')} onBack={() => setScreen('dashboard')} t={I18N[language]} />}
+      {screen === 'reading' && <ReadingScreen reading={reading} onShare={shareReading} onAskAgain={() => setScreen('questions')} onBack={() => setScreen('dashboard')} t={I18N[language]} language={language} />}
 
       <View style={styles.footerNav}>
         {isSignedIn && (
