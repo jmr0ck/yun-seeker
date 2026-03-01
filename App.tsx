@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Linking, SafeAreaView, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { transact } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js';
 import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
@@ -8,6 +9,7 @@ import { COLORS } from './src/app/constants';
 import type { Profile, ReadingResult, Screen } from './src/app/types';
 import { inferTimezone, mapQuestionType, parseHour24, validateDate, validatePlace, validateTime12h } from './src/app/utils';
 import { loadBootstrap, saveEmail as persistEmail, saveProfile as persistProfile, saveReports as persistReports } from './src/app/storage';
+import { AppLanguage, I18N, LANGUAGE_STORAGE_KEY } from './src/app/i18n';
 import {
   AuthScreen,
   DashboardScreen,
@@ -27,6 +29,7 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
+  const [language, setLanguage] = useState<AppLanguage>('en');
 
   const [birthDate, setBirthDate] = useState('');
   const [birthTime, setBirthTime] = useState('');
@@ -49,6 +52,8 @@ export default function App() {
     (async () => {
       try {
         const boot = await loadBootstrap();
+        const savedLang = (await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY)) as AppLanguage | null;
+        if (savedLang === 'en' || savedLang === 'zh-HK') setLanguage(savedLang);
         if (boot.email) {
           setEmail(boot.email);
           setIsSignedIn(true);
@@ -69,12 +74,18 @@ export default function App() {
   const handleAuth = async () => {
     const e = email.trim().toLowerCase();
     if (!e.includes('@') || !e.includes('.')) {
-      Alert.alert('Invalid Email', 'Please enter a valid email for sign-in/sign-up.');
+      Alert.alert('Invalid Email', I18N[language].invalidEmail);
       return;
     }
     await persistEmail(e);
     setIsSignedIn(true);
     setScreen('wallet');
+  };
+
+  const toggleLanguage = async () => {
+    const next: AppLanguage = language === 'en' ? 'zh-HK' : 'en';
+    setLanguage(next);
+    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, next);
   };
 
   const connectWallet = async () => {
@@ -109,9 +120,9 @@ export default function App() {
   };
 
   const goProfileConfirm = () => {
-    if (!validateDate(birthDate)) return Alert.alert('Invalid Birth Date', 'Use format: YYYY/MM/DD');
-    if (!validateTime12h(birthTime)) return Alert.alert('Invalid Birth Time', 'Use format: hh:mm AM/PM');
-    if (!validatePlace(birthPlace)) return Alert.alert('Invalid Birth Place', 'Use format: City, Country');
+    if (!validateDate(birthDate)) return Alert.alert('Invalid Birth Date', I18N[language].invalidDate);
+    if (!validateTime12h(birthTime)) return Alert.alert('Invalid Birth Time', I18N[language].invalidTime);
+    if (!validatePlace(birthPlace)) return Alert.alert('Invalid Birth Place', I18N[language].invalidPlace);
     setTimezone(inferTimezone(birthPlace));
     setScreen('profileConfirm');
   };
@@ -143,7 +154,7 @@ export default function App() {
       const hour = parseHour24(birthTime);
       const birthData = { year: y, month: m, day: d, hour, timezone: 'Asia/Hong_Kong' as const };
       const type = mapQuestionType(q);
-      const deep = FinalBossEngine.generate(q, birthData);
+      const deep = FinalBossEngine.generate(q, birthData, language);
 
       const report: ReadingResult = {
         title: deep.title,
@@ -196,6 +207,9 @@ export default function App() {
       <View style={styles.header}>
         <Text style={styles.logo}>運 yun-seeker</Text>
         <View style={{ alignItems: 'flex-end' }}>
+          <TouchableOpacity onPress={toggleLanguage}>
+            <Text style={styles.langSwitch}>{I18N[language].language}: {language}</Text>
+          </TouchableOpacity>
           {isSignedIn ? <Text style={styles.pill}>{email}</Text> : <Text style={styles.pillMuted}>Not signed in</Text>}
           {walletConnected ? <Text style={styles.pill}>Wallet: {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}</Text> : <Text style={styles.pillMuted}>Wallet not connected</Text>}
         </View>
@@ -221,9 +235,9 @@ export default function App() {
       <View style={styles.footerNav}>
         {isSignedIn && (
           <>
-            <TouchableOpacity onPress={() => setScreen('dashboard')}><Text style={styles.footerLink}>Dashboard</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => setScreen('questions')}><Text style={styles.footerLink}>Questions</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => setScreen('profile')}><Text style={styles.footerLink}>Profile</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setScreen('dashboard')}><Text style={styles.footerLink}>{I18N[language].dashboard}</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setScreen('questions')}><Text style={styles.footerLink}>{I18N[language].questions}</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setScreen('profile')}><Text style={styles.footerLink}>{I18N[language].profile}</Text></TouchableOpacity>
           </>
         )}
       </View>
@@ -235,6 +249,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#2b2f4a', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   logo: { color: COLORS.accent, fontWeight: '800', fontSize: 18 },
+  langSwitch: { color: COLORS.accent, fontSize: 11, marginBottom: 4 },
   pill: { color: COLORS.ok, fontSize: 11 },
   pillMuted: { color: COLORS.muted, fontSize: 11 },
   footerNav: { paddingVertical: 10, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: '#2b2f4a', flexDirection: 'row', justifyContent: 'space-around' },
