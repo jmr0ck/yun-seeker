@@ -24,7 +24,7 @@ function mapTopic(q: string): KnowledgeTopic {
 }
 
 export class FinalBossEngine {
-  static generate(question: string, birthData: BirthData, lang: 'en' | 'zh-HK' = 'en'): FinalBossReport {
+  static generate(question: string, birthData: BirthData, lang: 'en' | 'zh-HK' | 'zh-CN' | 'ja' | 'ko' | 'es' = 'en'): FinalBossReport {
     const topic = mapTopic(question);
     const base = Luck.read(birthData);
     const matched = matchKnowledge(topic, question);
@@ -54,11 +54,12 @@ export class FinalBossEngine {
     if (uncertaintyWords.some((w) => question.toLowerCase().includes(w))) confidence = 'Low';
     else if (topic === 'career' || topic === 'finance') confidence = 'High';
 
-    const summary = lang === 'zh-HK'
-      ? `【${topic.toUpperCase()}】分析：${base.summary} 重點係保持紀律執行，同埋按時機行動。`
+    const isChinese = lang === 'zh-HK' || lang === 'zh-CN';
+    const summary = isChinese
+      ? `【${topic.toUpperCase()}】分析：${base.summary} 重點是保持紀律執行，並按時機行動。`
       : `${topic.toUpperCase()} analysis: ${base.summary} Focus on disciplined execution and timing-aware decisions.`;
 
-    const title = lang === 'zh-HK' ? `${topic.toUpperCase()} 終極分析` : `${topic.toUpperCase()} Final Boss Reading`;
+    const title = isChinese ? `${topic.toUpperCase()} 終極分析` : `${topic.toUpperCase()} Final Boss Reading`;
 
     return {
       title,

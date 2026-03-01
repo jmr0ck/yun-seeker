@@ -9,7 +9,7 @@ import { COLORS } from './src/app/constants';
 import type { Profile, ReadingResult, Screen } from './src/app/types';
 import { inferTimezone, mapQuestionType, parseHour24, validateDate, validatePlace, validateTime12h } from './src/app/utils';
 import { loadBootstrap, saveEmail as persistEmail, saveProfile as persistProfile, saveReports as persistReports } from './src/app/storage';
-import { AppLanguage, I18N, LANGUAGE_STORAGE_KEY } from './src/app/i18n';
+import { AppLanguage, I18N, LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from './src/app/i18n';
 import {
   AuthScreen,
   DashboardScreen,
@@ -53,7 +53,7 @@ export default function App() {
       try {
         const boot = await loadBootstrap();
         const savedLang = (await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY)) as AppLanguage | null;
-        if (savedLang === 'en' || savedLang === 'zh-HK') setLanguage(savedLang);
+        if (savedLang && SUPPORTED_LANGUAGES.includes(savedLang)) setLanguage(savedLang);
         if (boot.email) {
           setEmail(boot.email);
           setIsSignedIn(true);
@@ -83,7 +83,8 @@ export default function App() {
   };
 
   const toggleLanguage = async () => {
-    const next: AppLanguage = language === 'en' ? 'zh-HK' : 'en';
+    const idx = SUPPORTED_LANGUAGES.indexOf(language);
+    const next: AppLanguage = SUPPORTED_LANGUAGES[(idx + 1) % SUPPORTED_LANGUAGES.length];
     setLanguage(next);
     await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, next);
   };
