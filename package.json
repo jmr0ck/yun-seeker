@@ -12,7 +12,8 @@
     "build:apk": "cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^1.24.0",
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "@solana-mobile/mobile-wallet-adapter-protocol": "^2.2.5",
     "@solana-mobile/wallet-adapter-mobile": "^2.2.0",
     "@solana-mobile/wallet-standard-mobile": "^0.4.0",
     "@solana/wallet-adapter-react": "^0.15.35",
@@ -20,11 +21,12 @@
     "buffer": "^6.0.3",
     "expo": "~52.0.0",
     "expo-asset": "~11.0.5",
+    "expo-modules-core": "^2.2.3",
     "expo-status-bar": "~2.0.0",
     "react": "18.3.1",
-    "react-native": "0.76.6",
+    "react-native": "0.76.9",
     "react-native-get-random-values": "^1.11.0",
-    "react-native-safe-area-context": "^5.0.0",
+    "react-native-safe-area-context": "4.12.0",
     "react-native-screens": "~4.4.0"
   },
   "devDependencies": {

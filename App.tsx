@@ -18,6 +18,9 @@ import {
   WelcomeScreen,
 } from './src/screens/AppScreens';
 
+// Wallet connection via Mobile Wallet Adapter (MWA) protocol
+import { transact, AuthorizationResult } from '@solana-mobile/mobile-wallet-adapter-protocol';
+
 // Wallet connection via deep links (no heavy libraries)
 
 
@@ -111,42 +114,59 @@ export default function App() {
     es: 'Español',
   };
 
-  const connectWallet = async () => {
-    // Try to open Seeker wallet via deep link
-    try {
-      // Try generic Solana scheme first (Seeker supports this)
-      const solanaUri = 'solana://';
-      const canOpen = await Linking.canOpenURL(solanaUri);
+const connectWallet = async () => {
+  try {
+    // Use MWA protocol to connect to wallet
+    const auth: AuthorizationResult = await transact(async (wallet) => {
+      return await wallet.authorize({
+        cluster: 'mainnet-beta',
+        identity: { 
+          name: 'yun-seeker', 
+          uri: 'https://github.com/jmr0ck/yun-seeker' 
+        },
+      });
+    });
+    
+    if (auth?.accounts?.[0]?.address) {
+      // Convert base64 address to base58
+      const addressBytes = new Uint8Array(atob(auth.accounts[0].address).split('').map(c => c.charCodeAt(0)));
+      const { PublicKey } = await import('@solana/web3.js');
+      const pubkey = new PublicKey(addressBytes).toBase58();
       
-      if (canOpen) {
-        // Open wallet - this will trigger the wallet app
-        await Linking.openURL(solanaUri);
-        
-        // After a delay, check if we returned from wallet
-        setTimeout(() => {
-          // For demo, assume connection successful
-          const mockAddress = 'SeekerWallet_' + Date.now().toString().slice(-8);
-          setWalletAddress(mockAddress);
-          setWalletConnected(true);
-          Alert.alert('Wallet Connected', `Connected to Seeker Wallet`);
-          setScreen('profile');
-        }, 2000);
-      } else {
-        throw new Error('No wallet app found');
-      }
-    } catch (e) {
-      // If wallet app not available, use demo mode
-      console.warn('Wallet connection failed:', e);
-      Alert.alert(
-        'Demo Mode', 
-        'Seeker Wallet not found. Using demo mode.\n\nFor full experience, install Seeker Wallet from dApp Store.',
-        [{ text: 'Continue', onPress: () => {
-          setWalletConnected(true);
-          setScreen('profile');
-        }}]
-      );
+      setWalletAddress(pubkey);
+      setWalletConnected(true);
+      Alert.alert('Wallet Connected', `Seeker Wallet connected:\n${pubkey.slice(0, 8)}...`);
+      setScreen('profile');
+    } else {
+      throw new Error('No account returned');
     }
-  };
+  } catch (e: any) {
+    console.warn('Wallet connection error:', e);
+    
+    // Try fallback - deep link
+    try {
+      const canOpen = await Linking.canOpenURL('solana://');
+      if (canOpen) {
+        await Linking.openURL('solana://');
+        // Assume connected after opening
+        setWalletConnected(true);
+        Alert.alert('Wallet', 'Please authorize in wallet app');
+        setScreen('profile');
+        return;
+      }
+    } catch {}
+    
+    // Final fallback - demo mode
+    Alert.alert(
+      'Demo Mode', 
+      'Could not connect to wallet. Using demo mode.',
+      [{ text: 'Continue', onPress: () => {
+        setWalletConnected(true);
+        setScreen('profile');
+      }}]
+    );
+  }
+};
 
   const openWalletFallback = async () => {
     try {
