@@ -8,7 +8,7 @@ const API_KEYS = {
   minimax: 'sk-api-yYf2HG9Gk0xiU9r' + 'R1YuI8lFu5Cat8KazfgkG-d-b_uzi9FUuNVoz2CVEjAdMNV_QkPAx_hvbO40frrRueFgjqYsC2aWK4rPpZAW1qcD4ARwi_mCcaq3G6vY',
 };
 
-const DEEPSEEK_BASE = 'https://api.deepseek.com';
+const DEEPSEEK_BASE = 'https://api.deepseek.com/v1';
 const MINIMAX_BASE = 'https://api.minimax.io/v1';
 
 export async function generateAIReading(
