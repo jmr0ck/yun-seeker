@@ -1,6 +1,10 @@
 import { Luck } from './luck';
 import { BirthData } from './types';
 import { KnowledgeTopic, matchKnowledge } from './finalBossKnowledge';
+import { FourPillars } from './fourPillars';
+import { FiveElements } from './fiveElements';
+import { PurpleStarEnhanced } from './purpleStarEnhanced';
+import { ChineseZodiac } from './chineseZodiac';
 
 type Lang = 'en' | 'zh-HK' | 'zh-CN' | 'ja' | 'ko' | 'es';
 
@@ -145,10 +149,31 @@ const LANG_PACK: Record<Lang, {
 export class FinalBossEngine {
   static generate(question: string, birthData: BirthData, lang: Lang = 'en', depth: 'quick' | 'master' = 'master'): FinalBossReport {
     const topic = mapTopic(question);
+    
+    // REAL Chinese Astrology Calculations
+    const fourPillars = new FourPillars().analyze(birthData);
+    const fiveElements = new FiveElements();
+    const elementBalance = fiveElements.calculateBalance(fourPillars);
+    const zodiac = new ChineseZodiac().getSign(birthData.year);
+    const purpleStar = new PurpleStarEnhanced().analyze(birthData);
+    
     const base = Luck.read(birthData);
     const matched = matchKnowledge(topic, question);
 
-    let payload: any = { base };
+    let payload: any = { 
+      // Real calculations
+      fourPillars: {
+        year: `${fourPillars.year.stem}${fourPillars.year.branch}`,
+        month: `${fourPillars.month.stem}${fourPillars.month.branch}`,
+        day: `${fourPillars.day.stem}${fourPillars.day.branch}`,
+        hour: `${fourPillars.hour.stem}${fourPillars.hour.branch}`,
+        dayMaster: fourPillars.dayMaster,
+      },
+      zodiac: zodiac.animal,
+      elementBalance,
+      purpleStar,
+    };
+    
     if (topic === 'love') {
       payload.compatibility = Luck.compatibility(birthData, birthData);
     }
@@ -158,10 +183,13 @@ export class FinalBossEngine {
 
     const pack = LANG_PACK[lang] || LANG_PACK.en;
     const knowledge = matched.slice(0, depth === 'quick' ? 2 : 5);
+    
+    // Include REAL 八字 in highlights
     const highlights = [
-      `Day Master: ${base.details.dayMaster}`,
-      `${pack.strengthsLabel}: ${base.details.strengths.join(', ') || 'N/A'}`,
-      `${pack.weaknessesLabel}: ${base.details.weaknesses.join(', ') || 'N/A'}`,
+      `【八字】${fourPillars.year.stem}${fourPillars.year.branch} ${fourPillars.month.stem}${fourPillars.month.branch} ${fourPillars.day.stem}${fourPillars.day.branch} ${fourPillars.hour.stem}${fourPillars.hour.branch}`,
+      `【五行】${elementBalance.join(', ')}`,
+      `【生肖】${zodiac.animal}`,
+      `【日主】${fourPillars.dayMaster}`,
       ...knowledge.map((k) => k.insight),
     ].slice(0, depth === 'quick' ? 4 : 8);
 
@@ -185,13 +213,15 @@ export class FinalBossEngine {
     const reasoning = [
       `Depth mode: ${depth}`,
       `Topic detected: ${topic}`,
-      `Day master assessed: ${base.details.dayMaster}`,
+      `Day master: ${fourPillars.dayMaster}`,
+      `Zodiac: ${zodiac.animal}`,
+      `紫微斗數: ${purpleStar.mainStar}`,
       `Matched knowledge rules: ${knowledge.map((k) => k.id).join(', ') || 'none'}`,
       `Confidence basis: ${confidence === 'High' ? 'structured domain fit' : confidence === 'Low' ? 'high uncertainty question wording' : 'mixed-signal context'}`,
     ];
 
-    const summary = `【${topic.toUpperCase()}】${pack.analysisPrefix}: ${base.summary} ${pack.disciplineLine}`;
-    const title = `${topic.toUpperCase()} ${pack.titleSuffix}`;
+    const summary = `【${topic.toUpperCase()}】${pack.analysisPrefix}: ${zodiac.animal}年 ${fourPillars.dayMaster}日主，五行【${elementBalance.join('/')}】。${pack.disciplineLine}`;
+    const title = `${topic.toUpperCase()} - ${zodiac.animal} ${fourPillars.dayMaster}`;
 
     return {
       title,
