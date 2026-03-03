@@ -133,7 +133,7 @@ export default function App() {
       if (!transactFn) {
         await loadSolana();
       }
-      if (!transactFn || !PublicKey) {
+      if (!transactFn || !PublicKey || !Buffer) {
         Alert.alert('Wallet Error', 'Solana modules not available. Using fallback.');
         setWalletConnected(true);
         setScreen('profile');
