@@ -1,9 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Linking, Modal, SafeAreaView, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { transact } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js';
-import { PublicKey } from '@solana/web3.js';
-import { Buffer } from 'buffer';
 import { FinalBossEngine } from './src/lib/finalBossEngine';
 import { COLORS } from './src/app/constants';
 import type { Profile, ReadingResult, Screen } from './src/app/types';
@@ -21,7 +18,24 @@ import {
   WelcomeScreen,
 } from './src/screens/AppScreens';
 
-if (typeof global.Buffer === 'undefined') global.Buffer = Buffer;
+// Lazy load Solana to prevent crash on init
+let transactFn: any = null;
+let PublicKey: any = null;
+let Buffer: any = null;
+
+const loadSolana = async () => {
+  try {
+    const solanaModule = await import('@solana-mobile/mobile-wallet-adapter-protocol-web3js');
+    const web3Module = await import('@solana/web3.js');
+    const bufferModule = await import('buffer');
+    transactFn = solanaModule.transact;
+    PublicKey = web3Module.PublicKey;
+    Buffer = bufferModule.Buffer;
+    if (typeof global.Buffer === 'undefined') global.Buffer = Buffer;
+  } catch (e) {
+    console.warn('Solana modules failed to load:', e);
+  }
+};
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('welcome');
@@ -115,7 +129,17 @@ export default function App() {
 
   const connectWallet = async () => {
     try {
-      const auth = await transact((wallet) =>
+      // Lazy load Solana on first wallet connect attempt
+      if (!transactFn) {
+        await loadSolana();
+      }
+      if (!transactFn || !PublicKey) {
+        Alert.alert('Wallet Error', 'Solana modules not available. Using fallback.');
+        setWalletConnected(true);
+        setScreen('profile');
+        return;
+      }
+      const auth = await transactFn((wallet: any) =>
         wallet.authorize({
           cluster: 'mainnet-beta',
           identity: { name: 'yun-seeker', uri: 'https://github.com/jmr0ck/yun-seeker' },
@@ -128,7 +152,8 @@ export default function App() {
       setWalletConnected(true);
       Alert.alert('Wallet Connected', `Seeker wallet connected:\n${pubkey.slice(0, 6)}...${pubkey.slice(-4)}`);
       setScreen('profile');
-    } catch {
+    } catch (e: any) {
+      console.warn('Wallet connection failed:', e);
       Alert.alert('Wallet Connection Failed', 'Open from a Seeker wallet-enabled device and try again.');
     }
   };
