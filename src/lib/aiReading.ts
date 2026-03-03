@@ -9,7 +9,7 @@ const API_KEYS = {
 };
 
 const DEEPSEEK_BASE = 'https://api.deepseek.com';
-const MINIMAX_BASE = 'https://api.minimax.chat/v1';
+const MINIMAX_BASE = 'https://api.minimax.io/v1';
 
 export async function generateAIReading(
   birthData: { year: number; month: number; day: number; hour: number; timezone: string },
