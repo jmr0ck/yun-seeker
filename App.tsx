@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Linking, Modal, SafeAreaView, Share, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FinalBossEngine } from './src/lib/finalBossEngine';
+import { generateAIReading } from './src/lib/aiReading';
 import { COLORS } from './src/app/constants';
 import type { Profile, ReadingResult, Screen } from './src/app/types';
 import { inferTimezone, mapQuestionType, parseHour24, validateDate, validatePlace, validateTime12h } from './src/app/utils';
@@ -220,25 +221,28 @@ const connectWallet = async () => {
     try {
       const [y, m, d] = birthDate.split('/').map(Number);
       const hour = parseHour24(birthTime);
-      const birthData = { year: y, month: m, day: d, hour, timezone: 'Asia/Hong_Kong' as const };
+      const birthData = { year: y, month: m, day: d, hour, timezone: timezone || 'Asia/Hong_Kong' as const };
       const type = mapQuestionType(q);
-      const deep = FinalBossEngine.generate(q, birthData, language, depthMode);
+
+      // Show loading
+      Alert.alert('🔮 運行者開示中...', '大師正在為你推算，請稍候...');
+      
+      // Use AI-powered reading (Final Boss quality!)
+      const aiReading = await generateAIReading(birthData, q, language);
 
       const report: ReadingResult = {
-        title: deep.title,
-        summary: deep.summary,
+        title: aiReading.title,
+        summary: aiReading.summary,
         data: {
-          ...deep.payload,
-          actionPlan: deep.actionPlan,
-          risks: deep.risks,
-          timing: deep.timing,
-          citations: deep.citations,
-          reasoning: deep.reasoning,
+          detailed: aiReading.detailed,
+          actionPlan: aiReading.actionPlan,
+          risks: aiReading.risks,
+          timing: aiReading.timing,
         },
         askedAt: new Date().toISOString(),
         question: q,
-        highlights: deep.highlights,
-        confidence: deep.confidence,
+        highlights: aiReading.highlights,
+        confidence: aiReading.confidence,
         focus: type,
       };
 

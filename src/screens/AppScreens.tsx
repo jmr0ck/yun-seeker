@@ -433,6 +433,15 @@ export function ReadingScreen({ reading, onShare, onDonate, onAskAgain, onBack, 
         </View>
       </JRPGPanel>
       
+      {/* Detailed AI Reading */}
+      {(reading?.data as any)?.detailed && (
+        <JRPGPanel title="◆ 大師開示 ◆ DETAILED READING" variant="gold">
+          <ScrollView style={styles.detailedScroll} nestedScrollEnabled>
+            <Text style={styles.detailedText}>{(reading?.data as any).detailed}</Text>
+          </ScrollView>
+        </JRPGPanel>
+      )}
+      
       <JRPGPanel title="◆ KEY INSIGHTS ◆">
         {(reading?.highlights || []).map((h, idx) => (
           <Text key={idx} style={styles.insightText}>◆ {h}</Text>
@@ -739,6 +748,14 @@ const styles = StyleSheet.create({
     color: JRPG.textPrimary,
     fontSize: 13,
     lineHeight: 20,
+  },
+  detailedScroll: {
+    maxHeight: 400,
+  },
+  detailedText: {
+    color: JRPG.textPrimary,
+    fontSize: 13,
+    lineHeight: 22,
   },
   actionText: {
     color: JRPG.hp,
