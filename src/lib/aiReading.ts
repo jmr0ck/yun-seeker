@@ -1,5 +1,6 @@
 /**
  * AI Reading Service - Final Boss Quality
+ * Supports: zh-HK (Cantonese), zh-CN (Simplified), en, ja, ko, es
  */
 
 const API_KEYS = {
@@ -23,17 +24,17 @@ export async function generateAIReading(
   const dayun = calcDayun(birthData.year);
   const liunian = calcLiunian(birthData.year);
   
-  const prompt = buildPrompt(pillars, tenGods, zodiac, elements, interactions, dayun, liunian, question);
+  const prompt = buildPrompt(pillars, tenGods, zodiac, elements, interactions, dayun, liunian, question, language);
   
   try {
-    const result = await callMiniMax(prompt);
+    const result = await callMiniMax(prompt, language);
     return parseResponse(result);
   } catch (e) {
     console.warn('MiniMax failed:', e);
   }
   
   try {
-    const result = await callDeepSeek(prompt);
+    const result = await callDeepSeek(prompt, language);
     return parseResponse(result);
   } catch (e) {
     console.error('All AI failed:', e);
@@ -107,29 +108,26 @@ function calcLiunian(y: number) {
   return s[(y-4)%10]+b[(y-4)%12];
 }
 
-function buildPrompt(p: any, tg: any, z: any, el: any, int: any, dy: any, ln: any, q: string) {
-  return `
-你係 30 年經驗既八字大師，用廣東話回答。
+function getSystemPrompt(lang: string): string {
+  const prompts: Record<string, string> = {
+    'zh-HK': '你係 30 年經驗既八字命理大師，用廣東話解答。',
+    'zh-CN': '你是 30 年经验的八字命理大师，用简体中文解答。',
+    'en': 'You are a 30-year experienced Chinese astrology master (BaZi). Answer in English.',
+    'ja': '你是30年の経験を持つ八字命理マスター。日本語で回答。',
+    'ko': '당신은 30년 경력의 팔자命理マスター。한국어로 답변.',
+    'es': 'Eres un maestro de BaZi (astrología china) con 30 años de experiencia. Responde en español.',
+  };
+  return prompts[lang] || prompts['zh-HK'];
+}
 
-【八字】
-年柱：${p.y}（${tg.y}）
-月柱：${p.m}（${tg.m}）
-日柱：${p.d}（${tg.d}日主）
-時柱：${p.h}（${tg.h}）
-
-【五行】木：${el.木} 火：${el.火} 土：${el.土} 金：${el.金} 水：${el.水}
-
-【生肖】${z}
-
-【刑沖合害】${int.join('、')}
-
-【大運】${dy.map((d:any,i:number)=>`${i+1}.${d.years}:${d.stem}${d.branch}`).join('; ')}
-
-【今年】${ln}
-
-【問題】${q}
-
-請詳細分析（廣東話）：
+function buildPrompt(p: any, tg: any, z: any, el: any, int: any, dy: any, ln: any, q: string, lang: string) {
+  const isZh = lang.startsWith('zh');
+  
+  const intro = isZh 
+    ? '你係 30 年經驗既八字大師，用廣東話/普通話回答。'
+    : 'You are a BaZi (Chinese astrology) master with 30 years experience.';
+  
+  const sections = isZh ? `
 1. 日主性格同適合職業
 2. 逐柱解釋（年/月/時）
 3. 十神邊個最強
@@ -142,23 +140,78 @@ function buildPrompt(p: any, tg: any, z: any, el: any, int: any, dy: any, ln: an
 10. 大運分析
 11. 今年運勢
 12. 總結建議
+` : `
+1. Day Master personality and suitable careers
+2. Each pillar explanation (Year/Month/Day/Hour)
+3. Which Ten God is strongest
+4. Five Elements balance
+5. Interactions (刑沖合害) impact
+6. Personality and love view
+7. Career advice
+8. Finance advice
+9. Health advice
+10. Da Yun (big luck) analysis
+11. This year's luck
+12. Summary recommendations
+`;
+
+  return `
+${intro}
+
+【八字 BaZi】
+年柱 Year：${p.y}（${tg.y}）
+月柱 Month：${p.m}（${tg.m}）
+日柱 Day：${p.d}（${tg.d} - 日主 Day Master）
+時柱 Hour：${p.h}（${tg.h}）
+
+【五行 Five Elements】木 Wood：${el.木} 火 Fire：${el.火} 土 Earth：${el.土} 金 Metal：${el.金} 水 Water：${el.水}
+
+【生肖 Zodiac】${z}
+
+【刑沖合害 Interactions】${int.join('、')}
+
+【大運 Da Yun】${dy.map((d:any,i:number)=>`${i+1}.${d.years}:${d.stem}${d.branch}`).join('; ')}
+
+【今年 This Year】${ln}
+
+【用戶問題 User Question】${q}
+
+${sections}
 `;
 }
 
-async function callMiniMax(p: string) {
+async function callMiniMax(p: string, lang: string) {
   const r = await fetch(`${MINIMAX_BASE}/text/chatcompletion_v2`, {
-    method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${API_KEYS.minimax}`},
-    body:JSON.stringify({model:'MiniMax-M2.5',messages:[{role:'system',content:'你係30年經驗既八字大師，用廣東話解答。'},{role:'user',content:p}],max_tokens:4000,temperature:0.7})
+    method:'POST', 
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${API_KEYS.minimax}`},
+    body:JSON.stringify({
+      model:'MiniMax-M2.5',
+      messages:[
+        {role:'system', content:getSystemPrompt(lang)},
+        {role:'user',content:p}
+      ],
+      max_tokens:4000,
+      temperature:0.7
+    })
   });
   if(!r.ok) throw new Error('MM'+r.status);
   const d = await r.json();
   return d.choices?.[0]?.message?.content||'';
 }
 
-async function callDeepSeek(p: string) {
+async function callDeepSeek(p: string, lang: string) {
   const r = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
-    method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${API_KEYS.deepseek}`},
-    body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'你係八字大師，用廣東話。'},{role:'user',content:p}],max_tokens:4000,temperature:0.7})
+    method:'POST', 
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${API_KEYS.deepseek}`},
+    body:JSON.stringify({
+      model:'deepseek-chat',
+      messages:[
+        {role:'system', content:getSystemPrompt(lang)},
+        {role:'user',content:p}
+      ],
+      max_tokens:4000,
+      temperature:0.7
+    })
   });
   if(!r.ok) throw new Error('DS'+r.status);
   const d = await r.json();
@@ -166,5 +219,14 @@ async function callDeepSeek(p: string) {
 }
 
 function parseResponse(t: string) {
-  return { title:'詳細命理分析', summary:t.slice(0,150), detailed:t, highlights:['日主','十神','五行','刑沖','大運','流年'], actionPlan:['了解自己','選擇方向'], risks:['注意健康'], timing:['今年','大運'], confidence:'High' as const };
+  return { 
+    title:'詳細命理分析 Detailed Reading', 
+    summary:t.slice(0,150), 
+    detailed:t, 
+    highlights:['日主 Day Master','十神 Ten Gods','五行 Five Elements','刑沖合害 Interactions','大運 Da Yun','流年 Current Year'], 
+    actionPlan:['了解自己 Know yourself','選擇方向 Choose direction'], 
+    risks:['注意健康 Care health'], 
+    timing:['今年 This year','大運 Da Yun'], 
+    confidence:'High' as const 
+  };
 }
