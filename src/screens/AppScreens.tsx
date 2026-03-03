@@ -1,23 +1,161 @@
 /**
  * Yun-seeker App Screens
- * 16-bit JRPG Style (Chrono Trigger vibe)
+ * Full JRPG Style - Chrono Trigger / FF6 Inspired
  */
 
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, ImageBackground } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, Image, ImageBackground, Animated } from 'react-native';
 import { COLORS, DEFAULT_QUESTIONS } from '../app/constants';
 import type { Profile, ReadingResult } from '../app/types';
 import type { AppLanguage } from '../app/i18n';
-import { PIXEL_COLORS, PIXEL_FONTS } from '../lib/pixelUI';
 
-// Import pixel art assets
-const PIXEL_ASSETS = {
-  sageNPC: require('../../assets/pixel_art/sage_npc.png'),
-  dragonSpirit: require('../../assets/pixel_art/dragon_spirit.png'),
-  turtleCompanion: require('../../assets/pixel_art/turtle_companion.png'),
-  dialogueBox: require('../../assets/pixel_art/dialogue_box.png'),
-  mainMenuBg: require('../../assets/pixel_art/main_menu_bg.png'),
+// JRPG Color Palette (Chrono Trigger inspired)
+const JRPG = {
+  // Backgrounds
+  darkBg: '#0a0a12',
+  darkBgAlt: '#12121f',
+  
+  // UI Panels - warm earthy tones
+  panelBg: '#1a1a2e',
+  panelBorder: '#3d2b1f',
+  panelBorderLight: '#6b4423',
+  
+  // Gold accents (classic JRPG)
+  gold: '#f0c040',
+  goldDark: '#a08020',
+  goldLight: '#ffe080',
+  
+  // Character stats colors
+  hp: '#40a040',
+  mp: '#4060e0',
+  tp: '#e04040',
+  
+  // Text
+  textPrimary: '#f8f8e8',
+  textSecondary: '#a0a0b0',
+  textGold: '#ffd700',
+  
+  // Action colors
+  confirm: '#50c878',
+  cancel: '#c04040',
+  highlight: '#4080ff',
 };
+
+// JRPG Button Component
+function JRPGBtn({ 
+  text, 
+  onPress, 
+  variant = 'primary',
+  disabled = false,
+  icon = null
+}: { 
+  text: string; 
+  onPress: () => void; 
+  variant?: 'primary' | 'secondary' | 'danger' | 'gold';
+  disabled?: boolean;
+  icon?: string;
+}) {
+  const colors = {
+    primary: { bg: JRPG.panelBg, border: JRPG.goldDark, text: JRPG.textPrimary },
+    secondary: { bg: JRPG.darkBgAlt, border: JRPG.panelBorderLight, text: JRPG.textSecondary },
+    danger: { bg: '#3a1a1a', border: JRPG.cancel, text: '#ff8080' },
+    gold: { bg: JRPG.goldDark, border: JRPG.gold, text: JRPG.darkBg },
+  }[variant];
+  
+  return (
+    <TouchableOpacity 
+      style={[
+        styles.jrpgBtn, 
+        { backgroundColor: colors.bg, borderColor: colors.border },
+        disabled && styles.jrpgBtnDisabled
+      ]} 
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.7}
+    >
+      <View style={styles.jrpgBtnContent}>
+        {icon && <Text style={styles.jrpgBtnIcon}>{icon}</Text>}
+        <Text style={[styles.jrpgBtnText, { color: colors.text }]}>{text}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// JRPG Panel/Card Component
+function JRPGPanel({ 
+  title, 
+  children, 
+  variant = 'normal',
+  onPress 
+}: { 
+  title: string; 
+  children: React.ReactNode; 
+  variant?: 'normal' | 'gold' | 'dark';
+  onPress?: () => void;
+}) {
+  const borders = {
+    normal: { border: JRPG.panelBorder, titleBg: '#2a2a3e' },
+    gold: { border: JRPG.goldDark, titleBg: '#3a3020' },
+    dark: { border: '#0a0a12', titleBg: '#0a0a12' },
+  }[variant];
+  
+  const Container = onPress ? TouchableOpacity : View;
+  
+  return (
+    <Container style={[styles.jrpgPanel, { borderColor: borders.border }]} onPress={onPress}>
+      <View style={[styles.jrpgPanelHeader, { backgroundColor: borders.titleBg }]}>
+        <Text style={styles.jrpgPanelTitle}>{title}</Text>
+      </View>
+      <View style={styles.jrpgPanelContent}>
+        {children}
+      </View>
+    </Container>
+  );
+}
+
+// JRPG Input Field
+function JRPGInput({ 
+  value, 
+  onChangeText, 
+  placeholder, 
+  multiline = false,
+  secure = false
+}: { 
+  value: string; 
+  onChangeText: (v: string) => void; 
+  placeholder?: string; 
+  multiline?: boolean;
+  secure?: boolean;
+}) {
+  return (
+    <View style={styles.jrpgInputContainer}>
+      <TextInput
+        style={[styles.jrpgInput, multiline && styles.jrpgInputMultiline]}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={JRPG.textSecondary}
+        multiline={multiline}
+        secureTextEntry={secure}
+      />
+    </View>
+  );
+}
+
+// Stat Bar (HP/MP style)
+function StatBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const percent = Math.min(100, Math.max(0, (value / max) * 100));
+  
+  return (
+    <View style={styles.statBarContainer}>
+      <Text style={styles.statBarLabel}>{label}</Text>
+      <View style={styles.statBarBg}>
+        <View style={[styles.statBarFill, { width: `${percent}%`, backgroundColor: color }]} />
+      </View>
+      <Text style={styles.statBarValue}>{value}/{max}</Text>
+    </View>
+  );
+}
 
 type TDict = { [k: string]: string };
 
@@ -36,53 +174,13 @@ function formatLocalDate(iso: string, lang: AppLanguage): string {
 
 function localizeQuestionLabel(label: string, lang: AppLanguage): string {
   const map: Record<string, Record<AppLanguage, string>> = {
-    'Love outlook': { en: 'Love outlook', 'zh-HK': '感情走勢', 'zh-CN': '感情走势', ja: '恋愛運', ko: '연애 운세', es: 'Panorama amoroso' },
-    'Career momentum': { en: 'Career momentum', 'zh-HK': '事業動能', 'zh-CN': '事业动能', ja: 'キャリア運', ko: '커리어 흐름', es: 'Impulso profesional' },
-    'Money/finance timing': { en: 'Money/finance timing', 'zh-HK': '財運時機', 'zh-CN': '财运时机', ja: '金運タイミング', ko: '재정 타이밍', es: 'Momento financiero' },
-    'Lucky numbers': { en: 'Lucky numbers', 'zh-HK': '幸運數字', 'zh-CN': '幸运数字', ja: 'ラッキーナンバー', ko: '행운의 숫자', es: 'Números de la suerte' },
-    'General decision': { en: 'General decision', 'zh-HK': '綜合決策', 'zh-CN': '综合决策', ja: '意思決定', ko: '종합 의사결정', es: 'Decisión general' },
+    'Love outlook': { en: '♥ Love', 'zh-HK': '♥ 感情', 'zh-CN': '♥ 感情', ja: '♥ 恋愛', ko: '♥ 연爱', es: '♥ Amor' },
+    'Career momentum': { en: '⚔ Career', 'zh-HK': '⚔ 事業', 'zh-CN': '⚔ 事业', ja: '⚔ キャリア', ko: '⚔ 커리어', es: '⚔ Carrera' },
+    'Money/finance timing': { en: '★ Finance', 'zh-HK': '★ 財運', 'zh-CN': '★ 财运', ja: '★ 金運', ko: '★ 재정', es: '★ Finanzas' },
+    'Lucky numbers': { en: '✪ Lucky', 'zh-HK': '✪ 幸運', 'zh-CN': '✪ 幸运', ja: '✪ ラッキー', ko: '✪ 행운', es: '✪ Suerte' },
+    'General decision': { en: '◎ Decision', 'zh-HK': '◎ 決策', 'zh-CN': '◎ 决策', ja: '◎ 意思決定', ko: '◎ 결정', es: '◎ Decisión' },
   };
   return map[label]?.[lang] || label;
-}
-
-// Reusable Pixel Button
-function PixelBtn({ text, onPress, variant = 'gold', disabled = false }: { text: string; onPress: () => void; variant?: 'gold' | 'blue' | 'green' | 'red'; disabled?: boolean }) {
-  const colors = {
-    gold: { bg: PIXEL_COLORS.gold, text: PIXEL_COLORS.darkBlack, border: PIXEL_COLORS.darkGold },
-    blue: { bg: PIXEL_COLORS.blue, text: PIXEL_COLORS.white, border: PIXEL_COLORS.darkBlue },
-    green: { bg: PIXEL_COLORS.green, text: PIXEL_COLORS.white, border: PIXEL_COLORS.darkGreen },
-    red: { bg: PIXEL_COLORS.red, text: PIXEL_COLORS.white, border: PIXEL_COLORS.darkRed },
-  }[variant];
-  return (
-    <TouchableOpacity style={[styles.pixelBtn, { backgroundColor: colors.bg, borderColor: colors.border }, disabled && styles.pixelBtnDisabled]} onPress={onPress} disabled={disabled}>
-      <Text style={[styles.pixelBtnText, { color: colors.text }]}>{text}</Text>
-    </TouchableOpacity>
-  );
-}
-
-// Reusable Pixel Card
-function PixelCard({ title, children, onPress }: { title: string; children: React.ReactNode; onPress?: () => void }) {
-  const Container = onPress ? TouchableOpacity : View;
-  return (
-    <Container style={styles.pixelCard} onPress={onPress}>
-      <View style={styles.pixelCardHeader}><Text style={styles.pixelCardTitle}>{title}</Text></View>
-      <View style={styles.pixelCardContent}>{children}</View>
-    </Container>
-  );
-}
-
-// Input field with pixel styling
-function PixelInput({ value, onChangeText, placeholder, multiline = false }: { value: string; onChangeText: (v: string) => void; placeholder?: string; multiline?: boolean }) {
-  return (
-    <TextInput
-      style={[styles.pixelInput, multiline && styles.pixelInputMultiline]}
-      value={value}
-      onChangeText={onChangeText}
-      placeholder={placeholder}
-      placeholderTextColor={PIXEL_COLORS.muted}
-      multiline={multiline}
-    />
-  );
 }
 
 // ===== SCREENS =====
@@ -90,13 +188,21 @@ function PixelInput({ value, onChangeText, placeholder, multiline = false }: { v
 export function WelcomeScreen({ onStart, t }: { onStart: () => void; t: TDict }) {
   return (
     <View style={styles.welcomeContainer}>
-      <Image source={PIXEL_ASSETS.sageNPC} style={styles.welcomeAvatar} />
-      <Text style={styles.welcomeTitle}>運</Text>
-      <Text style={styles.welcomeSubtitle}>{t.welcomeSubtitle}</Text>
-      <View style={styles.dialogueBox}>
-        <Text style={styles.dialogueText}>"Your destiny awaits. Shall we begin?"</Text>
+      <View style={styles.welcomeTitleArea}>
+        <Text style={styles.welcomeLogo}>運</Text>
+        <Text style={styles.welcomeTitle}>YUN-SEEKER</Text>
+        <Text style={styles.welcomeSubtitle}>◆ Destiny Awaits ◆</Text>
       </View>
-      <PixelBtn text={t.getStarted} onPress={onStart} variant="gold" />
+      
+      <JRPGPanel title="Sage Elder" variant="gold">
+        <Text style={styles.dialogueText}>"Greetings, traveler. Your destiny awaits within the stars. Shall we begin your journey?"</Text>
+      </JRPGPanel>
+      
+      <View style={styles.welcomeMenu}>
+        <JRPGBtn text="▶ BEGIN JOURNEY" onPress={onStart} variant="gold" />
+      </View>
+      
+      <Text style={styles.welcomeVersion}>v1.0.0 • Demo Build</Text>
     </View>
   );
 }
@@ -104,26 +210,39 @@ export function WelcomeScreen({ onStart, t }: { onStart: () => void; t: TDict })
 export function AuthScreen({ email, setEmail, onContinue, t }: { email: string; setEmail: (v: string) => void; onContinue: () => void; t: TDict }) {
   return (
     <ScrollView contentContainerStyle={styles.screenContainer}>
-      <Image source={PIXEL_ASSETS.dragonSpirit} style={styles.screenAvatar} />
-      <Text style={styles.screenTitle}>{t.authTitle}</Text>
-      <Text style={styles.screenSubtitle}>{t.authSubtitle}</Text>
-      <PixelInput value={email} onChangeText={setEmail} placeholder="your@email.com" />
-      <PixelBtn text={t.continue} onPress={onContinue} variant="blue" />
+      <View style={styles.authHeader}>
+        <Text style={styles.authTitle}>IDENTIFY YOURSELF</Text>
+        <Text style={styles.authSubtitle}>Enter your email to continue</Text>
+      </View>
+      
+      <JRPGPanel title="Traveler Registration">
+        <JRPGInput 
+          value={email} 
+          onChangeText={setEmail} 
+          placeholder="your.email@example.com"
+        />
+        <Text style={styles.authNote}>Your data is stored locally. No account required for demo.</Text>
+      </JRPGPanel>
+      
+      <JRPGBtn text="▶ CONTINUE" onPress={onContinue} variant="gold" />
     </ScrollView>
   );
 }
 
 export function WalletScreen({ onConnect, onFallback, t }: { onConnect: () => void; onFallback: () => void; t: TDict }) {
   return (
-    <View style={styles.welcomeContainer}>
-      <Image source={PIXEL_ASSETS.turtleCompanion} style={styles.welcomeAvatar} />
-      <Text style={styles.screenTitle}>{t.walletTitle}</Text>
-      <Text style={styles.screenSubtitle}>{t.walletSubtitle}</Text>
-      <View style={styles.dialogueBox}>
-        <Text style={styles.dialogueText}>"Connect your Seeker wallet to unlock ancient wisdom."</Text>
+    <View style={styles.screenContainer}>
+      <View style={styles.authHeader}>
+        <Text style={styles.authTitle}>CONNECT WALLET</Text>
+        <Text style={styles.authSubtitle}>Link your Solana identity</Text>
       </View>
-      <PixelBtn text={t.connectSeeker} onPress={onConnect} variant="gold" />
-      <PixelBtn text={t.walletFallback} onPress={onFallback} variant="blue" />
+      
+      <JRPGPanel title="Seeker Wallet" variant="gold">
+        <Text style={styles.dialogueText}>"The ancient wisdom is sealed behind the wallet gate. Connect to unlock full power!"</Text>
+      </JRPGPanel>
+      
+      <JRPGBtn text="◎ CONNECT SEEKER" onPress={onConnect} variant="gold" />
+      <JRPGBtn text="▶ SKIP (DEMO MODE)" onPress={onFallback} variant="secondary" />
     </View>
   );
 }
@@ -139,22 +258,34 @@ export function ProfileScreen(props: {
   const { birthDate, setBirthDate, birthTime, setBirthTime, birthPlace, setBirthPlace, currentLocation, setCurrentLocation, onReview, t } = props;
   return (
     <ScrollView contentContainerStyle={styles.screenContainer}>
-      <Text style={styles.screenTitle}>{t.profileSetup}</Text>
-      <Image source={PIXEL_ASSETS.sageNPC} style={styles.screenAvatar} />
+      <View style={styles.authHeader}>
+        <Text style={styles.authTitle}>CREATE YOUR PROFILE</Text>
+        <Text style={styles.authSubtitle}>The stars need your birth data</Text>
+      </View>
       
-      <Text style={styles.fieldLabel}>{t.birthDateLabel}</Text>
-      <PixelInput value={birthDate} onChangeText={setBirthDate} placeholder="1993/06/07" />
+      <JRPGPanel title="◆ Birth Information ◆">
+        <View style={styles.formGroup}>
+          <Text style={styles.fieldLabel}>BIRTH DATE</Text>
+          <JRPGInput value={birthDate} onChangeText={setBirthDate} placeholder="1993/06/07" />
+        </View>
+        
+        <View style={styles.formGroup}>
+          <Text style={styles.fieldLabel}>BIRTH TIME</Text>
+          <JRPGInput value={birthTime} onChangeText={setBirthTime} placeholder="08:30 AM" />
+        </View>
+        
+        <View style={styles.formGroup}>
+          <Text style={styles.fieldLabel}>BIRTH PLACE</Text>
+          <JRPGInput value={birthPlace} onChangeText={setBirthPlace} placeholder="Hong Kong, China" />
+        </View>
+        
+        <View style={styles.formGroup}>
+          <Text style={styles.fieldLabel}>CURRENT LOCATION</Text>
+          <JRPGInput value={currentLocation} onChangeText={setCurrentLocation} placeholder="New York, USA" />
+        </View>
+      </JRPGPanel>
       
-      <Text style={styles.fieldLabel}>{t.birthTimeLabel}</Text>
-      <PixelInput value={birthTime} onChangeText={setBirthTime} placeholder="08:30 AM" />
-      
-      <Text style={styles.fieldLabel}>{t.birthPlaceLabel}</Text>
-      <PixelInput value={birthPlace} onChangeText={setBirthPlace} placeholder="Hong Kong, China" />
-      
-      <Text style={styles.fieldLabel}>{t.currentLocationLabel}</Text>
-      <PixelInput value={currentLocation} onChangeText={setCurrentLocation} placeholder="New York, USA" />
-      
-      <PixelBtn text={t.reviewProfile} onPress={onReview} variant="gold" />
+      <JRPGBtn text="▶ REVIEW PROFILE" onPress={onReview} variant="gold" />
     </ScrollView>
   );
 }
@@ -162,21 +293,36 @@ export function ProfileScreen(props: {
 export function ProfileConfirmScreen({ profile, onConfirm, onEdit, t }: { profile: Profile; onConfirm: () => void; onEdit: () => void; t: TDict }) {
   return (
     <ScrollView contentContainerStyle={styles.screenContainer}>
-      <Text style={styles.screenTitle}>{t.confirmProfile}</Text>
-      <View style={styles.dialogueBox}>
-        <Text style={styles.dialogueText}>"Is this the correct alignment of your stars?"</Text>
+      <View style={styles.authHeader}>
+        <Text style={styles.authTitle}>CONFIRM PROFILE</Text>
+        <Text style={styles.authSubtitle}>Verify your stellar coordinates</Text>
       </View>
       
-      <PixelCard title={t.parsedProfile}>
-        <Text style={styles.cardText}>{t.date}: {profile.birthDate}</Text>
-        <Text style={styles.cardText}>{t.time}: {profile.birthTime.toUpperCase()}</Text>
-        <Text style={styles.cardText}>{t.birthPlace}: {profile.birthPlace}</Text>
-        <Text style={styles.cardText}>{t.currentLocation}: {profile.currentLocation || '-'}</Text>
-        <Text style={styles.cardText}>{t.timezone}: {profile.timezone}</Text>
-      </PixelCard>
+      <JRPGPanel title="◆ YOUR DESTINY DATA ◆" variant="gold">
+        <View style={styles.profileRow}>
+          <Text style={styles.profileLabel}>Date:</Text>
+          <Text style={styles.profileValue}>{profile.birthDate}</Text>
+        </View>
+        <View style={styles.profileRow}>
+          <Text style={styles.profileLabel}>Time:</Text>
+          <Text style={styles.profileValue}>{profile.birthTime.toUpperCase()}</Text>
+        </View>
+        <View style={styles.profileRow}>
+          <Text style={styles.profileLabel}>Birth:</Text>
+          <Text style={styles.profileValue}>{profile.birthPlace}</Text>
+        </View>
+        <View style={styles.profileRow}>
+          <Text style={styles.profileLabel}>Current:</Text>
+          <Text style={styles.profileValue}>{profile.currentLocation || '-'}</Text>
+        </View>
+        <View style={styles.profileRow}>
+          <Text style={styles.profileLabel}>Zone:</Text>
+          <Text style={styles.profileValue}>{profile.timezone}</Text>
+        </View>
+      </JRPGPanel>
       
-      <PixelBtn text={t.confirmSave} onPress={onConfirm} variant="gold" />
-      <PixelBtn text={t.edit} onPress={onEdit} variant="blue" />
+      <JRPGBtn text="✓ SAVE PROFILE" onPress={onConfirm} variant="gold" />
+      <JRPGBtn text="✎ EDIT" onPress={onEdit} variant="secondary" />
     </ScrollView>
   );
 }
@@ -184,31 +330,45 @@ export function ProfileConfirmScreen({ profile, onConfirm, onEdit, t }: { profil
 export function DashboardScreen({ profile, history, onAsk, onEdit, onOpenHistory, t, language }: { profile: Profile; history: ReadingResult[]; onAsk: () => void; onEdit: () => void; onOpenHistory: (r: ReadingResult) => void; t: TDict; language: AppLanguage }) {
   return (
     <ScrollView contentContainerStyle={styles.screenContainer}>
-      <Text style={styles.screenTitle}>{t.dashboardTitle}</Text>
+      <View style={styles.authHeader}>
+        <Text style={styles.authTitle}>DASHBOARD</Text>
+        <Text style={styles.authSubtitle}>Your destiny command center</Text>
+      </View>
       
-      <PixelCard title={t.storedProfile}>
-        <Text style={styles.cardText}>{t.date}: {profile.birthDate || '-'}</Text>
-        <Text style={styles.cardText}>{t.time}: {profile.birthTime || '-'}</Text>
-        <Text style={styles.cardText}>{t.birthPlace}: {profile.birthPlace || '-'}</Text>
-        <Text style={styles.cardText}>{t.currentLocation}: {profile.currentLocation || '-'}</Text>
-        <Text style={styles.cardText}>{t.timezone}: {profile.timezone || '-'}</Text>
-      </PixelCard>
+      <JRPGPanel title="◆ YOUR PROFILE ◆" variant="gold">
+        <View style={styles.profileRow}>
+          <Text style={styles.profileLabel}>Date:</Text>
+          <Text style={styles.profileValue}>{profile.birthDate || '---'}</Text>
+        </View>
+        <View style={styles.profileRow}>
+          <Text style={styles.profileLabel}>Time:</Text>
+          <Text style={styles.profileValue}>{profile.birthTime || '---'}</Text>
+        </View>
+        <View style={styles.profileRow}>
+          <Text style={styles.profileLabel}>Place:</Text>
+          <Text style={styles.profileValue}>{profile.birthPlace || '---'}</Text>
+        </View>
+        <View style={styles.profileRow}>
+          <Text style={styles.profileLabel}>Zone:</Text>
+          <Text style={styles.profileValue}>{profile.timezone || '---'}</Text>
+        </View>
+      </JRPGPanel>
       
-      <PixelBtn text={t.askQuestion} onPress={onAsk} variant="gold" />
-      <PixelBtn text={t.editProfile} onPress={onEdit} variant="blue" />
+      <JRPGBtn text="▶ ASK THE STARS" onPress={onAsk} variant="gold" />
+      <JRPGBtn text="✎ EDIT PROFILE" onPress={onEdit} variant="secondary" />
       
-      <PixelCard title={t.recentReports}>
+      <JRPGPanel title="◆ READING HISTORY ◆">
         {history.length === 0 ? (
-          <Text style={styles.mutedText}>{t.noReports}</Text>
+          <Text style={styles.emptyText}>No readings yet. Ask the stars!</Text>
         ) : (
-          history.slice(0, 8).map((r, i) => (
+          history.slice(0, 5).map((r, i) => (
             <TouchableOpacity key={`${r.askedAt}-${i}`} style={styles.historyItem} onPress={() => onOpenHistory(r)}>
-              <Text style={styles.cardText}>★ {r.title}</Text>
-              <Text style={styles.mutedText}>{formatLocalDate(r.askedAt, language)}</Text>
+              <Text style={styles.historyTitle}>★ {r.title}</Text>
+              <Text style={styles.historyDate}>{formatLocalDate(r.askedAt, language)}</Text>
             </TouchableOpacity>
           ))
         )}
-      </PixelCard>
+      </JRPGPanel>
     </ScrollView>
   );
 }
@@ -216,127 +376,400 @@ export function DashboardScreen({ profile, history, onAsk, onEdit, onOpenHistory
 export function QuestionsScreen({ selectedQuestion, setSelectedQuestion, customQuestion, setCustomQuestion, onGenerate, t, language }: { selectedQuestion: string; setSelectedQuestion: (v: string) => void; customQuestion: string; setCustomQuestion: (v: string) => void; onGenerate: () => void; t: TDict; language: AppLanguage }) {
   return (
     <ScrollView contentContainerStyle={styles.screenContainer}>
-      <Text style={styles.screenTitle}>{t.questionsTitle}</Text>
-      <Image source={PIXEL_ASSETS.dragonSpirit} style={styles.screenAvatar} />
+      <View style={styles.authHeader}>
+        <Text style={styles.authTitle}>SELECT QUEST</Text>
+        <Text style={styles.authSubtitle}>What do you seek from destiny?</Text>
+      </View>
       
       {DEFAULT_QUESTIONS.map((q) => (
         <TouchableOpacity
           key={q.label}
-          style={[styles.optionItem, selectedQuestion === q.value && styles.optionActive]}
+          style={[styles.questionItem, selectedQuestion === q.value && styles.questionItemActive]}
           onPress={() => { setSelectedQuestion(q.value); setCustomQuestion(''); }}
         >
-          <Text style={[styles.optionText, selectedQuestion === q.value && styles.optionTextActive]}>
-            ♦ {localizeQuestionLabel(q.label, language)}
+          <Text style={[styles.questionText, selectedQuestion === q.value && styles.questionTextActive]}>
+            {localizeQuestionLabel(q.label, language)}
           </Text>
         </TouchableOpacity>
       ))}
       
-      <Text style={styles.fieldLabel}>{t.customQuestion}</Text>
-      <PixelInput value={customQuestion} onChangeText={(v) => { setCustomQuestion(v); if (v.trim()) setSelectedQuestion(''); }} placeholder={t.customQuestionPlaceholder} multiline />
+      <JRPGPanel title="CUSTOM QUESTION">
+        <JRPGInput 
+          value={customQuestion} 
+          onChangeText={(v) => { setCustomQuestion(v); if (v.trim()) setSelectedQuestion(''); }} 
+          placeholder="Ask anything..."
+          multiline
+        />
+      </JRPGPanel>
       
-      <PixelBtn text={t.generateReport} onPress={onGenerate} variant="gold" />
+      <JRPGBtn text="★ RECEIVE DIVINATION" onPress={onGenerate} variant="gold" />
     </ScrollView>
   );
 }
 
 export function ReadingScreen({ reading, onShare, onAskAgain, onBack, t, language }: { reading: ReadingResult | null; onShare: () => void; onAskAgain: () => void; onBack: () => void; t: TDict; language: AppLanguage }) {
-  const confidenceLabel = reading?.confidence === 'High' ? t.confidenceHigh : reading?.confidence === 'Low' ? t.confidenceLow : t.confidenceMedium;
-  const confidenceColor = reading?.confidence === 'High' ? PIXEL_COLORS.green : reading?.confidence === 'Low' ? PIXEL_COLORS.red : PIXEL_COLORS.gold;
+  const confidenceColor = reading?.confidence === 'High' ? JRPG.hp : reading?.confidence === 'Low' ? JRPG.tp : JRPG.gold;
   
   return (
     <ScrollView contentContainerStyle={styles.screenContainer}>
-      <Text style={styles.screenTitle}>{t.yourReport}</Text>
-      
-      <View style={styles.heroCard}>
-        <Text style={styles.heroTitle}>{reading?.title}</Text>
-        <Text style={styles.mutedText}>{t.qPrefix}: {reading?.question}</Text>
-        <Text style={styles.mutedText}>{t.date}: {reading?.askedAt ? formatLocalDate(reading.askedAt, language) : '-'}</Text>
-        <Text style={styles.summaryText}>{reading?.summary || t.noSummary}</Text>
-        
-        <View style={styles.chipRow}>
-          <View style={styles.chip}><Text style={styles.chipText}>{t.focus}: {reading?.focus}</Text></View>
-          <View style={[styles.chip, { borderColor: confidenceColor }]}><Text style={[styles.chipText, { color: confidenceColor }]}>{t.confidence}: {confidenceLabel}</Text></View>
-        </View>
+      <View style={styles.readingHeader}>
+        <Text style={styles.readingTitle}>{reading?.title || 'DIVINATION'}</Text>
+        <Text style={styles.readingQuestion}>Q: {reading?.question}</Text>
       </View>
       
-      <PixelCard title={t.keyHighlights}>
-        {(reading?.highlights || []).map((h, idx) => <Text key={idx} style={styles.cardText}>◆ {h}</Text>)}
-      </PixelCard>
+      <JRPGPanel title="◆ SUMMARY ◆" variant="gold">
+        <Text style={styles.summaryText}>{reading?.summary || 'No summary available.'}</Text>
+        <View style={styles.readingStats}>
+          <View style={styles.statChip}>
+            <Text style={styles.statChipLabel}>Focus:</Text>
+            <Text style={styles.statChipValue}>{reading?.focus || '---'}</Text>
+          </View>
+          <View style={[styles.statChip, { borderColor: confidenceColor }]}>
+            <Text style={[styles.statChipLabel, { color: confidenceColor }]}>Confidence:</Text>
+            <Text style={[styles.statChipValue, { color: confidenceColor }]}>
+              {reading?.confidence === 'High' ? 'HIGH' : reading?.confidence === 'Low' ? 'LOW' : 'MEDIUM'}
+            </Text>
+          </View>
+        </View>
+      </JRPGPanel>
       
-      <PixelCard title={t.actionPlan}>
-        {((reading?.data?.actionPlan as string[]) || []).map((a, i) => <Text key={`a-${i}`} style={styles.cardText}>➤ {a}</Text>)}
-      </PixelCard>
+      <JRPGPanel title="◆ KEY INSIGHTS ◆">
+        {(reading?.highlights || []).map((h, idx) => (
+          <Text key={idx} style={styles.insightText}>◆ {h}</Text>
+        ))}
+      </JRPGPanel>
       
-      <PixelCard title={t.riskWatch}>
-        {((reading?.data?.risks as string[]) || []).map((r, i) => <Text key={`r-${i}`} style={styles.cardText}>⚠ {r}</Text>)}
-      </PixelCard>
+      <JRPGPanel title="◆ ACTION PLAN ◆">
+        {((reading?.data?.actionPlan as string[]) || []).map((a, i) => (
+          <Text key={`a-${i}`} style={styles.actionText}>➤ {a}</Text>
+        ))}
+      </JRPGPanel>
       
-      <PixelCard title={t.timingWindows}>
-        {((reading?.data?.timing as string[]) || []).map((w, i) => <Text key={`w-${i}`} style={styles.cardText}>⏰ {w}</Text>)}
-      </PixelCard>
+      <JRPGPanel title="◆ TIMING ◆">
+        {((reading?.data?.timing as string[]) || []).map((w, i) => (
+          <Text key={`w-${i}`} style={styles.timingText}>⏰ {w}</Text>
+        ))}
+      </JRPGPanel>
       
-      <PixelBtn text={t.shareExport} onPress={onShare} variant="gold" />
-      <PixelBtn text={t.askAnother} onPress={onAskAgain} variant="blue" />
-      <PixelBtn text={t.backDashboard} onPress={onBack} variant="green" />
+      <View style={styles.readingActions}>
+        <JRPGBtn text="◈ SHARE" onPress={onShare} variant="gold" />
+        <JRPGBtn text="▶ ASK AGAIN" onPress={onAskAgain} variant="secondary" />
+        <JRPGBtn text="◀ BACK" onPress={onBack} variant="secondary" />
+      </View>
     </ScrollView>
   );
 }
 
-// ===== STYLES (16-bit JRPG) =====
+// ===== STYLES =====
 
 const styles = StyleSheet.create({
   // Containers
-  welcomeContainer: { flex: 1, padding: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: PIXEL_COLORS.darkBlack },
-  screenContainer: { padding: 18, backgroundColor: PIXEL_COLORS.darkBlack },
+  welcomeContainer: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: JRPG.darkBg,
+    justifyContent: 'center',
+  },
+  screenContainer: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: JRPG.darkBg,
+  },
   
-  // Titles
-  welcomeTitle: { fontSize: 56, color: PIXEL_COLORS.gold, fontWeight: 'bold', textShadowColor: PIXEL_COLORS.darkGold, textShadowOffset: { width: 3, height: 3 }, marginBottom: 8 },
-  welcomeSubtitle: { fontSize: 16, color: PIXEL_COLORS.cream, marginBottom: 20, textAlign: 'center' },
-  screenTitle: { fontSize: 28, color: PIXEL_COLORS.gold, fontWeight: 'bold', textAlign: 'center', marginBottom: 16, textShadowColor: PIXEL_COLORS.darkGold, textShadowOffset: { width: 2, height: 2 } },
-  screenSubtitle: { fontSize: 14, color: PIXEL_COLORS.cream, marginBottom: 20, textAlign: 'center' },
+  // Welcome Screen
+  welcomeTitleArea: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  welcomeLogo: {
+    fontSize: 72,
+    color: JRPG.gold,
+    textShadowColor: JRPG.goldDark,
+    textShadowOffset: { width: 2, height: 2 },
+  },
+  welcomeTitle: {
+    fontSize: 32,
+    color: JRPG.gold,
+    fontWeight: 'bold',
+    letterSpacing: 4,
+    textShadowColor: JRPG.goldDark,
+    textShadowOffset: { width: 1, height: 1 },
+  },
+  welcomeSubtitle: {
+    fontSize: 14,
+    color: JRPG.textSecondary,
+    marginTop: 8,
+  },
+  welcomeMenu: {
+    marginTop: 24,
+  },
+  welcomeVersion: {
+    textAlign: 'center',
+    color: JRPG.textSecondary,
+    fontSize: 10,
+    marginTop: 24,
+  },
   
-  // Avatars
-  welcomeAvatar: { width: 120, height: 120, resizeMode: 'contain', marginBottom: 16 },
-  screenAvatar: { width: 80, height: 80, resizeMode: 'contain', alignSelf: 'center', marginBottom: 16 },
+  // Auth/Wallet Screens
+  authHeader: {
+    marginBottom: 20,
+  },
+  authTitle: {
+    fontSize: 24,
+    color: JRPG.gold,
+    fontWeight: 'bold',
+    letterSpacing: 2,
+  },
+  authSubtitle: {
+    fontSize: 12,
+    color: JRPG.textSecondary,
+    marginTop: 4,
+  },
+  authNote: {
+    fontSize: 10,
+    color: JRPG.textSecondary,
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
   
-  // Dialogue Box
-  dialogueBox: { backgroundColor: PIXEL_COLORS.black, borderWidth: 3, borderColor: PIXEL_COLORS.gold, borderRadius: 8, padding: 12, marginBottom: 20, width: '100%' },
-  dialogueText: { color: PIXEL_COLORS.cream, fontSize: 14, fontStyle: 'italic', textAlign: 'center', lineHeight: 22 },
+  // JRPG Button
+  jrpgBtn: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderWidth: 2,
+    borderRadius: 4,
+    marginVertical: 6,
+  },
+  jrpgBtnDisabled: {
+    opacity: 0.5,
+  },
+  jrpgBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  jrpgBtnIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  jrpgBtnText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
   
-  // Buttons
-  pixelBtn: { paddingVertical: 14, paddingHorizontal: 24, borderWidth: 3, borderColor: PIXEL_COLORS.darkBlack, borderRadius: 4, marginVertical: 6, alignItems: 'center', width: '100%' },
-  pixelBtnDisabled: { opacity: 0.5 },
-  pixelBtnText: { fontSize: 16, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 },
+  // JRPG Panel
+  jrpgPanel: {
+    backgroundColor: JRPG.panelBg,
+    borderWidth: 2,
+    borderRadius: 4,
+    marginVertical: 8,
+    overflow: 'hidden',
+  },
+  jrpgPanelHeader: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: JRPG.panelBorder,
+  },
+  jrpgPanelTitle: {
+    color: JRPG.gold,
+    fontSize: 12,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  jrpgPanelContent: {
+    padding: 12,
+  },
   
-  // Inputs
-  fieldLabel: { color: PIXEL_COLORS.gold, fontSize: 12, fontWeight: 'bold', marginBottom: 4, marginTop: 12, textTransform: 'uppercase' },
-  pixelInput: { backgroundColor: PIXEL_COLORS.black, borderWidth: 2, borderColor: PIXEL_COLORS.gold, borderRadius: 4, color: PIXEL_COLORS.cream, paddingHorizontal: 12, paddingVertical: 12, fontSize: 14, marginBottom: 8 },
-  pixelInputMultiline: { minHeight: 80, textAlignVertical: 'top' },
+  // JRPG Input
+  jrpgInputContainer: {
+    marginBottom: 8,
+  },
+  jrpgInput: {
+    backgroundColor: JRPG.darkBg,
+    borderWidth: 1,
+    borderColor: JRPG.panelBorder,
+    borderRadius: 4,
+    color: JRPG.textPrimary,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  jrpgInputMultiline: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
   
-  // Cards
-  pixelCard: { backgroundColor: PIXEL_COLORS.black, borderWidth: 2, borderColor: PIXEL_COLORS.gold, borderRadius: 8, marginVertical: 10, overflow: 'hidden' },
-  pixelCardHeader: { backgroundColor: PIXEL_COLORS.darkGold, paddingVertical: 8, paddingHorizontal: 12 },
-  pixelCardTitle: { color: PIXEL_COLORS.darkBlack, fontWeight: 'bold', fontSize: 12, textTransform: 'uppercase' },
-  pixelCardContent: { padding: 12 },
-  cardText: { color: PIXEL_COLORS.cream, fontSize: 13, lineHeight: 20, marginBottom: 4 },
-  mutedText: { color: PIXEL_COLORS.muted, fontSize: 12 },
+  // Form
+  formGroup: {
+    marginBottom: 12,
+  },
+  fieldLabel: {
+    color: JRPG.gold,
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
   
-  // Hero Card
-  heroCard: { backgroundColor: PIXEL_COLORS.darkBlue, borderWidth: 3, borderColor: PIXEL_COLORS.gold, borderRadius: 8, padding: 16, marginVertical: 10 },
-  heroTitle: { color: PIXEL_COLORS.gold, fontWeight: 'bold', fontSize: 20, marginBottom: 8, textShadowColor: PIXEL_COLORS.darkGold, textShadowOffset: { width: 1, height: 1 } },
-  summaryText: { color: PIXEL_COLORS.cream, fontSize: 14, lineHeight: 22, marginTop: 12 },
+  // Profile
+  profileRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: JRPG.panelBorder,
+  },
+  profileLabel: {
+    color: JRPG.textSecondary,
+    fontSize: 12,
+  },
+  profileValue: {
+    color: JRPG.textPrimary,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   
-  // Chips
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 },
-  chip: { backgroundColor: PIXEL_COLORS.darkBlack, borderWidth: 1, borderColor: PIXEL_COLORS.gold, borderRadius: 4, paddingVertical: 4, paddingHorizontal: 10, marginRight: 8, marginBottom: 4 },
-  chipText: { color: PIXEL_COLORS.gold, fontSize: 11, fontWeight: 'bold' },
+  // Dialogue
+  dialogueText: {
+    color: JRPG.textPrimary,
+    fontSize: 13,
+    fontStyle: 'italic',
+    lineHeight: 20,
+    textAlign: 'center',
+  },
   
-  // Options
-  optionItem: { backgroundColor: PIXEL_COLORS.black, borderWidth: 2, borderColor: PIXEL_COLORS.darkGold, borderRadius: 4, padding: 12, marginBottom: 8 },
-  optionActive: { borderColor: PIXEL_COLORS.gold, backgroundColor: PIXEL_COLORS.darkGold },
-  optionText: { color: PIXEL_COLORS.cream, fontSize: 14 },
-  optionTextActive: { color: PIXEL_COLORS.darkBlack, fontWeight: 'bold' },
+  // Questions
+  questionItem: {
+    backgroundColor: JRPG.panelBg,
+    borderWidth: 1,
+    borderColor: JRPG.panelBorder,
+    borderRadius: 4,
+    padding: 14,
+    marginVertical: 4,
+  },
+  questionItemActive: {
+    backgroundColor: JRPG.goldDark,
+    borderColor: JRPG.gold,
+  },
+  questionText: {
+    color: JRPG.textPrimary,
+    fontSize: 14,
+  },
+  questionTextActive: {
+    color: JRPG.darkBg,
+    fontWeight: 'bold',
+  },
   
   // History
-  historyItem: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: PIXEL_COLORS.darkGold },
+  historyItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: JRPG.panelBorder,
+  },
+  historyTitle: {
+    color: JRPG.gold,
+    fontSize: 13,
+  },
+  historyDate: {
+    color: JRPG.textSecondary,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  emptyText: {
+    color: JRPG.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  
+  // Reading
+  readingHeader: {
+    marginBottom: 16,
+  },
+  readingTitle: {
+    fontSize: 28,
+    color: JRPG.gold,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  readingQuestion: {
+    fontSize: 12,
+    color: JRPG.textSecondary,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  summaryText: {
+    color: JRPG.textPrimary,
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  readingStats: {
+    flexDirection: 'row',
+    marginTop: 12,
+  },
+  statChip: {
+    backgroundColor: JRPG.darkBg,
+    borderWidth: 1,
+    borderColor: JRPG.panelBorder,
+    borderRadius: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginRight: 8,
+  },
+  statChipLabel: {
+    color: JRPG.textSecondary,
+    fontSize: 10,
+  },
+  statChipValue: {
+    color: JRPG.gold,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  insightText: {
+    color: JRPG.textPrimary,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  actionText: {
+    color: JRPG.hp,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  timingText: {
+    color: JRPG.mp,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  readingActions: {
+    marginTop: 16,
+    marginBottom: 32,
+  },
+  
+  // Stat Bar
+  statBarContainer: {
+    marginBottom: 8,
+  },
+  statBarLabel: {
+    color: JRPG.textSecondary,
+    fontSize: 10,
+    marginBottom: 2,
+  },
+  statBarBg: {
+    height: 8,
+    backgroundColor: JRPG.darkBg,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  statBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  statBarValue: {
+    color: JRPG.textSecondary,
+    fontSize: 10,
+    marginTop: 2,
+    textAlign: 'right',
+  },
 });
