@@ -23,8 +23,9 @@ export async function generateAIReading(
   const interactions = calcInteractions(pillars);
   const dayun = calcDayun(birthData.year);
   const liunian = calcLiunian(birthData.year);
+  const purpleStar = calcPurpleStar(birthData);
   
-  const prompt = buildPrompt(pillars, tenGods, zodiac, elements, interactions, dayun, liunian, question, language);
+  const prompt = buildPrompt(pillars, tenGods, zodiac, elements, interactions, dayun, liunian, purpleStar, question, language);
   
   try {
     const result = await callMiniMax(prompt, language);
@@ -120,7 +121,7 @@ function getSystemPrompt(lang: string): string {
   return prompts[lang] || prompts['zh-HK'];
 }
 
-function buildPrompt(p: any, tg: any, z: any, el: any, int: any, dy: any, ln: any, q: string, lang: string) {
+function buildPrompt(p: any, tg: any, z: any, el: any, int: any, dy: any, ln: any, ps: any, q: string, lang: string) {
   const isZh = lang.startsWith('zh');
   
   const intro = isZh 
@@ -171,6 +172,10 @@ ${intro}
 【刑沖合害 Interactions】${int.join('、')}
 
 【大運 Da Yun】${dy.map((d:any,i:number)=>`${i+1}.${d.years}:${d.stem}${d.branch}`).join('; ')}
+
+【紫微斗數 Zi Wei Dou Shu】
+主星 Main Star: ${ps.mainStar}
+命宮 Life Palace: ${ps.lifePalace}
 
 【今年 This Year】${ln}
 
@@ -228,5 +233,35 @@ function parseResponse(t: string) {
     risks:['注意健康 Care health'], 
     timing:['今年 This year','大運 Da Yun'], 
     confidence:'High' as const 
+  };
+}
+
+// 紫微斗數 Purple Star Astrology
+function calcPurpleStar(d: { year: number; month: number; day: number; hour: number }) {
+  // Simplified Purple Star calculation
+  // In real practice, this requires complex astronomical calculations
+  const stems = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+  const branches = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+  
+  // Basic palace determination based on birth year
+  const yearCycle = (d.year - 4) % 60;
+  const monthCycle = ((d.year - 1900) * 12 + d.month) % 12;
+  const dayCycle = Math.floor((new Date(d.year, d.month - 1, d.day).getTime() / 86400000 + 2692908) % 60);
+  const hourCycle = Math.floor((d.hour + 1) / 2) % 12;
+  
+  // Main star positions (simplified)
+  const palaces = ['命宮','兄弟宮','夫妻宮','子女宮','財帛宮','疾厄宮','遷移宮','僕役宮','官祿宮','田宅宮','福德宮','父母宮'];
+  const mainStars = ['紫微','天機','太陽','武曲','天同','廉貞','天府','太陰','貪狼','巨門','天相','天梁','七殺','破軍'];
+  
+  // Calculate main palace index
+  const mainPalace = (14 - yearCycle % 14) % 12;
+  
+  return {
+    palaces,
+    mainStars,
+    lifePalace: palaces[mainPalace],
+    mainStar: mainStars[yearCycle % 14],
+    stem: stems[yearCycle % 10],
+    branch: branches[yearCycle % 12],
   };
 }
