@@ -233,16 +233,16 @@ export function WalletScreen({ onConnect, onFallback, t }: { onConnect: () => vo
   return (
     <View style={styles.screenContainer}>
       <View style={styles.authHeader}>
-        <Text style={styles.authTitle}>CONNECT WALLET</Text>
-        <Text style={styles.authSubtitle}>Link your Solana identity</Text>
+        <Text style={styles.authTitle}>WALLET (OPTIONAL)</Text>
+        <Text style={styles.authSubtitle}>Connect Seeker wallet for full experience</Text>
       </View>
       
       <JRPGPanel title="Seeker Wallet" variant="gold">
-        <Text style={styles.dialogueText}>"The ancient wisdom is sealed behind the wallet gate. Connect to unlock full power!"</Text>
+        <Text style={styles.dialogueText}>"The ancient wisdom is available now! Connect your wallet for the full experience, or continue in demo mode."</Text>
       </JRPGPanel>
       
-      <JRPGBtn text="◎ CONNECT SEEKER" onPress={onConnect} variant="gold" />
-      <JRPGBtn text="▶ SKIP (DEMO MODE)" onPress={onFallback} variant="secondary" />
+      <JRPGBtn text="▶ CONTINUE (DEMO MODE)" onPress={onFallback} variant="gold" />
+      <JRPGBtn text="◎ CONNECT WALLET" onPress={onConnect} variant="secondary" />
     </View>
   );
 }

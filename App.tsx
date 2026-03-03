@@ -128,36 +128,10 @@ export default function App() {
   };
 
   const connectWallet = async () => {
-    try {
-      // Lazy load Solana on first wallet connect attempt
-      if (!transactFn) {
-        await loadSolana();
-      }
-      if (!transactFn || !PublicKey || !Buffer) {
-        Alert.alert('Wallet Error', 'Solana modules not available. Using fallback.');
-        setWalletConnected(true);
-        setScreen('profile');
-        return;
-      }
-      const auth = await transactFn((wallet: any) =>
-        wallet.authorize({
-          cluster: 'mainnet-beta',
-          identity: { name: 'yun-seeker', uri: 'https://github.com/jmr0ck/yun-seeker' },
-        }),
-      );
-      const acct = auth.accounts?.[0];
-      if (!acct?.address) throw new Error('No wallet account returned');
-      const pubkey = new PublicKey(Buffer.from(acct.address, 'base64')).toBase58();
-      setWalletAddress(pubkey);
-      setWalletConnected(true);
-      Alert.alert('Wallet Connected', `Seeker wallet connected:\n${pubkey.slice(0, 6)}...${pubkey.slice(-4)}`);
-      setScreen('profile');
-    } catch (e: any) {
-      console.warn('Wallet connection failed:', e);
-      // Auto-fallback to demo mode instead of showing error
-      setWalletConnected(true);
-      setScreen('profile');
-    }
+    // For demo/hackathon: just skip to profile
+    // Wallet integration can be added after submission
+    setWalletConnected(true);
+    setScreen('profile');
   };
 
   const openWalletFallback = async () => {
