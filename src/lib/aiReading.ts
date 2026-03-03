@@ -1,9 +1,7 @@
 /**
- * AI Reading Service
- * Generates detailed astrology readings using MiniMax + DeepSeek
+ * AI Reading Service - Final Boss Quality
  */
 
-// API Keys (split and encoded for basic obfuscation)
 const API_KEYS = {
   deepseek: 'sk-' + '6e70550ebe0347c28b22d07b032abb50',
   minimax: 'sk-api-yYf2HG9Gk0xiU9r' + 'R1YuI8lFu5Cat8KazfgkG-d-b_uzi9FUuNVoz2CVEjAdMNV_QkPAx_hvbO40frrRueFgjqYsC2aWK4rPpZAW1qcD4ARwi_mCcaq3G6vY',
@@ -12,234 +10,161 @@ const API_KEYS = {
 const DEEPSEEK_BASE = 'https://api.deepseek.com';
 const MINIMAX_BASE = 'https://api.minimax.chat/v1';
 
-/**
- * Generate detailed astrology reading using AI
- */
 export async function generateAIReading(
-  birthData: {
-    year: number;
-    month: number;
-    day: number;
-    hour: number;
-    timezone: string;
-  },
+  birthData: { year: number; month: number; day: number; hour: number; timezone: string },
   question: string,
   language: string = 'zh-HK'
-): Promise<{
-  title: string;
-  summary: string;
-  detailed: string;
-  highlights: string[];
-  actionPlan: string[];
-  risks: string[];
-  timing: string[];
-  confidence: 'Low' | 'Medium' | 'High';
-}> {
-  // First calculate the 八字
-  const fourPillars = calculateFourPillars(birthData);
-  const zodiac = calculateZodiac(birthData.year);
-  const fiveElements = calculateElements(fourPillars);
+) {
+  const pillars = calcPillars(birthData);
+  const tenGods = calcTenGods(pillars);
+  const zodiac = calcZodiac(birthData.year);
+  const elements = calcElements(pillars);
+  const interactions = calcInteractions(pillars);
+  const dayun = calcDayun(birthData.year);
+  const liunian = calcLiunian(birthData.year);
   
-  // Build the detailed prompt
-  const prompt = buildrologyPrompt(fAstourPillars, zodiac, fiveElements, question, language);
+  const prompt = buildPrompt(pillars, tenGods, zodiac, elements, interactions, dayun, liunian, question);
   
-  // Try MiniMax first (better for Chinese)
   try {
-    const result = await callMiniMax(prompt, language);
-    return parseAIResponse(result, question);
+    const result = await callMiniMax(prompt);
+    return parseResponse(result);
   } catch (e) {
-    console.warn('MiniMax failed, trying DeepSeek:', e);
+    console.warn('MiniMax failed:', e);
   }
   
-  // Fallback to DeepSeek
   try {
     const result = await callDeepSeek(prompt);
-    return parseAIResponse(result, question);
+    return parseResponse(result);
   } catch (e) {
-    console.error('AI generation failed:', e);
-    throw new Error('AI service unavailable');
+    console.error('All AI failed:', e);
+    throw new Error('AI unavailable');
   }
 }
 
-function calculateFourPillars(data: { year: number; month: number; day: number; hour: number }) {
-  const stems = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
-  const branches = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-  
-  const yearCycle = (data.year - 4) % 60;
-  const monthCycle = ((data.year - 1900) * 12 + data.month) % 60;
-  const dayCycle = Math.floor((new Date(data.year, data.month - 1, data.day).getTime() / 86400000 + 2692908) % 60);
-  const hourCycle = Math.floor((data.hour + 1) / 2) % 12;
-  
+function calcPillars(d: { year: number; month: number; day: number; hour: number }) {
+  const s = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+  const b = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
   return {
-    year: stems[yearCycle % 10] + branches[yearCycle % 12],
-    month: stems[monthCycle % 10] + branches[monthCycle % 12],
-    day: stems[dayCycle % 10] + branches[dayCycle % 12],
-    hour: stems[hourCycle % 10] + branches[hourCycle % 12],
-    dayMaster: stems[dayCycle % 10],
+    y: s[(d.year-4)%10]+b[(d.year-4)%12],
+    m: s[((d.year-1900)*12+d.month)%10]+b[((d.year-1900)*12+d.month)%12],
+    d: s[Math.floor((new Date(d.year,d.month-1,d.day).getTime()/86400000+2692908)%60)%10]+b[Math.floor((new Date(d.year,d.month-1,d.day).getTime()/86400000+2692908)%60)%12],
+    h: s[Math.floor((d.hour+1)/2)%10]+b[Math.floor((d.hour+1)/2)%12],
   };
 }
 
-function calculateZodiac(year: number) {
-  const animals = ['鼠', '牛', '虎', '兔', '龍', '蛇', '馬', '羊', '猴', '雞', '狗', '豬'];
-  return animals[(year - 4) % 12];
-}
-
-function calculateElements(pillars: { dayMaster: string }) {
-  const elements: Record<string, string> = {
-    '甲': '木', '乙': '木',
-    '丙': '火', '丁': '火',
-    '戊': '土', '己': '土',
-    '庚': '金', '辛': '金',
-    '壬': '水', '癸': '水',
+function calcTenGods(p: { d: string }) {
+  const map: Record<string, Record<string,string>> = {
+    '甲':{'甲':'比肩','乙':'劫財','丙':'食神','丁':'傷官','戊':'偏財','己':'正財','庚':'偏官','辛':'正官','壬':'偏印','癸':'正印'},
+    '乙':{'甲':'劫財','乙':'比肩','丙':'傷官','丁':'食神','戊':'正財','己':'偏財','庚':'正官','辛':'偏官','壬':'正印','癸':'偏印'},
+    '丙':{'甲':'偏印','乙':'正印','丙':'比肩','丁':'劫財','戊':'食神','己':'傷官','庚':'偏財','辛':'正財','壬':'偏官','癸':'正官'},
+    '丁':{'甲':'正印','乙':'偏印','丙':'劫財','丁':'比肩','戊':'傷官','己':'食神','庚':'正財','辛':'偏財','壬':'正官','癸':'偏官'},
+    '戊':{'甲':'偏官','乙':'正官','丙':'偏財','丁':'正財','戊':'比肩','己':'劫財','庚':'食神','辛':'傷官','壬':'偏印','癸':'正印'},
+    '己':{'甲':'正官','乙':'偏官','丙':'正財','丁':'偏財','戊':'劫財','己':'比肩','庚':'傷官','辛':'食神','壬':'正印','癸':'偏印'},
+    '庚':{'甲':'食神','乙':'傷官','丙':'偏印','丁':'正印','戊':'偏官','己':'正官','庚':'比肩','辛':'劫財','壬':'偏財','癸':'正財'},
+    '辛':{'甲':'傷官','乙':'食神','丙':'正印','丁':'偏印','戊':'正官','己':'偏官','庚':'劫財','辛':'比肩','壬':'正財','癸':'偏財'},
+    '壬':{'甲':'比肩','乙':'劫財','丙':'食神','丁':'傷官','戊':'偏財','己':'正財','庚':'偏官','辛':'正官','壬':'偏印','癸':'正印'},
+    '癸':{'甲':'劫財','乙':'比肩','丙':'傷官','丁':'食神','戊':'正財','己':'偏財','庚':'正官','辛':'偏官','壬':'正印','癸':'偏印'},
   };
-  return elements[pillars.dayMaster] || '土';
+  return { y: map[p.d[0]]?.[p.y[0]], m: map[p.d[0]]?.[p.m[0]], d: map[p.d[0]]?.[p.d[0]], h: map[p.d[0]]?.[p.h[0]] };
 }
 
-function buildAstrologyPrompt(pillars: any, zodiac: string, elements: string, question: string, lang: string): string {
-  const isChinese = lang.startsWith('zh');
-  
-  const systemPrompt = isChinese 
-    ? `你是一位專業的八字命理大師，精通八字、紫微斗數、五行、生肖。你要用廣東話/繁體中文為用戶提供詳細的命理分析。
+function calcZodiac(y: number) {
+  return ['鼠','牛','虎','兔','龍','蛇','馬','羊','猴','雞','狗','豬'][(y-4)%12];
+}
 
-重要規則：
-1. 用廣東話口語講嘢，例如：「你係」、「唔係」、「佢」、「呢個」、「咁樣」
-2. 每一柱都要詳細解釋
-3. 要講十神對應
-4. 要分析刑沖合害
-5. 都要包含大運、流年分析
-6. 最後比建議`
+function calcElements(p: { y: string; m: string; d: string; h: string }) {
+  const e: Record<string,string> = {'甲':'木','乙':'木','丙':'火','丁':'火','戊':'土','己':'土','庚':'金','辛':'金','壬':'水','癸':'水'};
+  const be: Record<string,string> = {'子':'水','丑':'土','寅':'木','卯':'木','辰':'土','巳':'火','午':'火','未':'土','申':'金','酉':'金','戌':'土','亥':'水'};
+  const all = [e[p.y[0]],e[p.m[0]],e[p.d[0]],e[p.h[0]],be[p.y[1]],be[p.m[1]],be[p.d[1]],be[p.h[1]]];
+  const r = { 木:0,火:0,土:0,金:0,水:0 };
+  all.forEach(x => r[x as keyof typeof r]++);
+  return r;
+}
 
-    : `You are a professional Chinese astrology master (八字, 紫微斗數, 五行, 生肖). Provide detailed readings in a conversational tone. Explain each pillar, Ten Gods, 刑冲合害, 大運, 流年. Give actionable advice.`;
+function calcInteractions(p: { y: string; m: string; d: string; h: string }) {
+  const b = [p.y[1],p.m[1],p.d[1],p.h[1]];
+  const r: string[] = [];
+  if(b.includes('子')&&b.includes('午'))r.push('子午沖');
+  if(b.includes('寅')&&b.includes('申'))r.push('寅申沖');
+  if(b.includes('卯')&&b.includes('酉'))r.push('卯酉沖');
+  if(b.includes('寅')&&b.includes('午')&&b.includes('戌'))r.push('寅午戌火局');
+  if(b.includes('申')&&b.includes('子')&&b.includes('辰'))r.push('申子辰水局');
+  return r.length?r:['暫無明顯刑沖合害'];
+}
 
-  const userPrompt = `
-用戶資料：
-- 出生年份：${pillars.year}年柱
-- 出生月份：${pillars.month}月柱  
-- 出生日期：${pillars.day}日柱
-- 出生時辰：${pillars.hour}時柱
-- 日主：${pillars.dayMaster}（${elements}性）
-- 生肖：${zodiac}
+function calcDayun(y: number) {
+  const s = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+  const b = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+  const base = 2011;
+  const age = y - base;
+  const start = Math.floor(age/10);
+  return Array.from({length:5},(_,i)=>({stem:s[(start+i)%10],branch:b[(start+i)%12],years:`${base+(start+i)*10}-${base+(start+i)*10+9}`}));
+}
 
-用戶問題：${question}
+function calcLiunian(y: number) {
+  const s = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+  const b = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+  return s[(y-4)%10]+b[(y-4)%12];
+}
 
-請提供：
-1. 逐柱解釋（年/月/日/時）
-2. 十神對應
-3. 刑沖合害分析
-4. 五行強弱
-5. 性格分析
-6. 事業/財運/愛情建議
-7. 大運簡介
-8. 今年/明年運勢
+function buildPrompt(p: any, tg: any, z: any, el: any, int: any, dy: any, ln: any, q: string) {
+  return `
+你係 30 年經驗既八字大師，用廣東話回答。
 
-用廣東話/繁體中文詳細解釋，等普通人睇得明。
+【八字】
+年柱：${p.y}（${tg.y}）
+月柱：${p.m}（${tg.m}）
+日柱：${p.d}（${tg.d}日主）
+時柱：${p.h}（${tg.h}）
+
+【五行】木：${el.木} 火：${el.火} 土：${el.土} 金：${el.金} 水：${el.水}
+
+【生肖】${z}
+
+【刑沖合害】${int.join('、')}
+
+【大運】${dy.map((d:any,i:number)=>`${i+1}.${d.years}:${d.stem}${d.branch}`).join('; ')}
+
+【今年】${ln}
+
+【問題】${q}
+
+請詳細分析（廣東話）：
+1. 日主性格同適合職業
+2. 逐柱解釋（年/月/時）
+3. 十神邊個最強
+4. 五行邊個最強/要補
+5. 刑沖合害影響
+6. 性格+愛情觀
+7. 事業建議
+8. 財運建議
+9. 健康建議
+10. 大運分析
+11. 今年運勢
+12. 總結建議
 `;
-
-  return `${systemPrompt}\n\n${userPrompt}`;
 }
 
-async function callMiniMax(prompt: string, lang: string): Promise<string> {
-  const langCode = lang.startsWith('zh-HK') || lang.startsWith('zh-CN') ? '粵語' : '中文';
-  
-  const response = await fetch(`${MINIMAX_BASE}/text/chatcompletion_v2`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${API_KEYS.minimax}`,
-    },
-    body: JSON.stringify({
-      model: 'MiniMax-M2.5',
-      messages: [
-        { role: 'system', content: '你係一位八字命理大師，用廣東話講嘢。' },
-        { role: 'user', content: prompt }
-      ],
-      max_tokens: 4000,
-      temperature: 0.7,
-    }),
+async function callMiniMax(p: string) {
+  const r = await fetch(`${MINIMAX_BASE}/text/chatcompletion_v2`, {
+    method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${API_KEYS.minimax}`},
+    body:JSON.stringify({model:'MiniMax-M2.5',messages:[{role:'system',content:'你係30年經驗既八字大師，用廣東話解答。'},{role:'user',content:p}],max_tokens:4000,temperature:0.7})
   });
-
-  if (!response.ok) {
-    throw new Error(`MiniMax error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || '';
+  if(!r.ok) throw new Error('MM'+r.status);
+  const d = await r.json();
+  return d.choices?.[0]?.message?.content||'';
 }
 
-async function callDeepSeek(prompt: string): Promise<string> {
-  const response = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${API_KEYS.deepseek}`,
-    },
-    body: JSON.stringify({
-      model: 'deepseek-chat',
-      messages: [
-        { role: 'system', content: '你是一位專業的八字命理大師，用廣東話/廣東話解釋廣東話。' },
-        { role: 'user', content: prompt }
-      ],
-      max_tokens: 4000,
-      temperature: 0.7,
-    }),
+async function callDeepSeek(p: string) {
+  const r = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
+    method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${API_KEYS.deepseek}`},
+    body:JSON.stringify({model:'deepseek-chat',messages:[{role:'system',content:'你係八字大師，用廣東話。'},{role:'user',content:p}],max_tokens:4000,temperature:0.7})
   });
-
-  if (!response.ok) {
-    throw new Error(`DeepSeek error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || '';
+  if(!r.ok) throw new Error('DS'+r.status);
+  const d = await r.json();
+  return d.choices?.[0]?.message?.content||'';
 }
 
-function parseAIResponse(aiText: string, question: string): any {
-  // Parse the AI response into structured format
-  const lines = aiText.split('\n').filter(l => l.trim());
-  
-  return {
-    title: `【${question.slice(0, 20)}】詳細分析`,
-    summary: lines.slice(0, 2).join(' ').slice(0, 200),
-    detailed: aiText,
-    highlights: extractHighlights(aiText),
-    actionPlan: extractActions(aiText),
-    risks: extractRisks(aiText),
-    timing: extractTiming(aiText),
-    confidence: 'High',
-  };
-}
-
-function extractHighlights(text: string): string[] {
-  const highlights: string[] = [];
-  const lines = text.split('\n');
-  
-  for (const line of lines) {
-    if (line.includes('柱') || line.includes('日主') || line.includes('五行') || line.includes('生肖')) {
-      highlights.push(line.trim().slice(0, 100));
-    }
-    if (highlights.length >= 8) break;
-  }
-  
-  return highlights.length ? highlights : ['詳細分析進行中...'];
-}
-
-function extractActions(text: string): string[] {
-  const actions: string[] = [];
-  const lines = text.split('\n');
-  
-  for (const line of lines) {
-    if (line.includes('建議') || line.includes('action') || line.includes('做') || line.includes('可以')) {
-      actions.push(line.trim().slice(0, 100));
-    }
-    if (actions.length >= 5) break;
-  }
-  
-  return actions.length ? actions : ['繼續努力'];
-}
-
-function extractRisks(text: string): string[] {
-  return ['注意健康', '避免衝動決策'];
-}
-
-function extractTiming(text: string): string[] {
-  return ['今年運勢', '明年展望'];
+function parseResponse(t: string) {
+  return { title:'詳細命理分析', summary:t.slice(0,150), detailed:t, highlights:['日主','十神','五行','刑沖','大運','流年'], actionPlan:['了解自己','選擇方向'], risks:['注意健康'], timing:['今年','大運'], confidence:'High' as const };
 }
