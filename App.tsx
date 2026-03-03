@@ -18,22 +18,32 @@ import {
   WelcomeScreen,
 } from './src/screens/AppScreens';
 
-// Lazy load Solana to prevent crash on init
-let transactFn: any = null;
-let PublicKey: any = null;
-let Buffer: any = null;
+// Lazy load Solana wallet - build-safe with dynamic imports
+let walletModule: any = null;
 
-const loadSolana = async () => {
+const loadWalletModule = async () => {
+  if (walletModule) return walletModule;
   try {
-    const solanaModule = await import('@solana-mobile/mobile-wallet-adapter-protocol-web3js');
-    const web3Module = await import('@solana/web3.js');
-    const bufferModule = await import('buffer');
-    transactFn = solanaModule.transact;
-    PublicKey = web3Module.PublicKey;
-    Buffer = bufferModule.Buffer;
-    if (typeof global.Buffer === 'undefined') global.Buffer = Buffer;
+    walletModule = await import('@solana-mobile/mobile-wallet-adapter-protocol-web3js');
+    return walletModule;
   } catch (e) {
-    console.warn('Solana modules failed to load:', e);
+    console.warn('Wallet module not available:', e);
+    return null;
+  }
+};
+
+const loadWeb3Module = async () => {
+  try {
+    const web3 = await import('@solana/web3.js');
+    // Ensure Buffer is available
+    if (typeof global.Buffer === 'undefined') {
+      const buffer = await import('buffer');
+      global.Buffer = buffer.Buffer;
+    }
+    return web3;
+  } catch (e) {
+    console.warn('Web3 module not available:', e);
+    return null;
   }
 };
 
@@ -128,10 +138,42 @@ export default function App() {
   };
 
   const connectWallet = async () => {
-    // For demo/hackathon: just skip to profile
-    // Wallet integration can be added after submission
-    setWalletConnected(true);
-    setScreen('profile');
+    // Try to connect using Mobile Wallet Adapter
+    try {
+      const { transact } = await loadWalletModule() || {};
+      const { PublicKey } = await loadWeb3Module() || {};
+      
+      if (!transact || !PublicKey) {
+        // Fallback: use demo mode if wallet libs not available
+        Alert.alert('Wallet Not Available', 'Using demo mode. Wallet integration can be added later.');
+        setWalletConnected(true);
+        setScreen('profile');
+        return;
+      }
+
+      // Attempt wallet authorization
+      const auth = await transact((wallet: any) =>
+        wallet.authorize({
+          cluster: 'mainnet-beta',
+          identity: { name: 'yun-seeker', uri: 'https://github.com/jmr0ck/yun-seeker' },
+        }),
+      );
+      
+      const acct = auth.accounts?.[0];
+      if (!acct?.address) throw new Error('No wallet account returned');
+      
+      const pubkey = new PublicKey(Buffer.from(acct.address, 'base64')).toBase58();
+      setWalletAddress(pubkey);
+      setWalletConnected(true);
+      Alert.alert('Wallet Connected', `Seeker wallet connected:\n${pubkey.slice(0, 6)}...${pubkey.slice(-4)}`);
+      setScreen('profile');
+    } catch (e: any) {
+      console.warn('Wallet connection failed:', e);
+      // Fallback to demo mode
+      Alert.alert('Wallet Failed', 'Could not connect to wallet. Continuing in demo mode.');
+      setWalletConnected(true);
+      setScreen('profile');
+    }
   };
 
   const openWalletFallback = async () => {
