@@ -187,7 +187,7 @@ function localizeQuestionLabel(label: string, lang: AppLanguage): string {
 
 export function WelcomeScreen({ onStart, t }: { onStart: () => void; t: TDict }) {
   return (
-    <View style={styles.welcomeContainer}>
+    <ScrollView contentContainerStyle={styles.welcomeScrollContent} showsVerticalScrollIndicator={true}>
       <View style={styles.welcomeTitleArea}>
         <Text style={styles.welcomeLogo}>運</Text>
         <Text style={styles.welcomeTitle}>YUN-SEEKER</Text>
@@ -203,7 +203,7 @@ export function WelcomeScreen({ onStart, t }: { onStart: () => void; t: TDict })
       </View>
       
       <Text style={styles.welcomeVersion}>v1.0.0 • Demo Build</Text>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -471,12 +471,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   screenContainer: {
-    flex: 1,
+    flexGrow: 1,
     padding: 16,
     backgroundColor: JRPG.darkBg,
+    paddingBottom: 40,
   },
   
   // Welcome Screen
+  welcomeScrollContent: {
+    flexGrow: 1,
+    padding: 16,
+    justifyContent: 'center',
+    backgroundColor: JRPG.darkBg,
+  },
   welcomeTitleArea: {
     alignItems: 'center',
     marginBottom: 24,
