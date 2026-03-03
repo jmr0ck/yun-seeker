@@ -407,7 +407,7 @@ export function QuestionsScreen({ selectedQuestion, setSelectedQuestion, customQ
   );
 }
 
-export function ReadingScreen({ reading, onShare, onAskAgain, onBack, t, language }: { reading: ReadingResult | null; onShare: () => void; onAskAgain: () => void; onBack: () => void; t: TDict; language: AppLanguage }) {
+export function ReadingScreen({ reading, onShare, onDonate, onAskAgain, onBack, t, language }: { reading: ReadingResult | null; onShare: () => void; onDonate: () => void; onAskAgain: () => void; onBack: () => void; t: TDict; language: AppLanguage }) {
   const confidenceColor = reading?.confidence === 'High' ? JRPG.hp : reading?.confidence === 'Low' ? JRPG.tp : JRPG.gold;
   
   return (
@@ -453,6 +453,7 @@ export function ReadingScreen({ reading, onShare, onAskAgain, onBack, t, languag
       
       <View style={styles.readingActions}>
         <JRPGBtn text="◈ SHARE" onPress={onShare} variant="gold" />
+        <JRPGBtn text="💎 DONATE SOL" onPress={onDonate} variant="gold" />
         <JRPGBtn text="▶ ASK AGAIN" onPress={onAskAgain} variant="secondary" />
         <JRPGBtn text="◀ BACK" onPress={onBack} variant="secondary" />
       </View>

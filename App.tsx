@@ -209,6 +209,14 @@ const connectWallet = async () => {
     const q = (customQuestion.trim() || selectedQuestion.trim()).trim();
     if (!q) return Alert.alert('Question Required', 'Pick a default question or type a custom question.');
 
+    // Check daily limit (3 questions per day)
+    const today = new Date().toISOString().slice(0, 10);
+    const lastReadDate = await AsyncStorage.getItem('yun:lastReadDate');
+    const readCountToday = parseInt(await AsyncStorage.getItem('yun:readCountToday') || '0', 10);
+    if (lastReadDate === today && readCountToday >= 3) {
+      return Alert.alert('Daily Limit Reached', 'You can ask 3 questions per day. Come back tomorrow!');
+    }
+
     try {
       const [y, m, d] = birthDate.split('/').map(Number);
       const hour = parseHour24(birthTime);
@@ -238,6 +246,11 @@ const connectWallet = async () => {
       setReading(report);
       setHistory(nextHistory);
       await persistReports(email, nextHistory);
+      
+      // Update daily read count
+      await AsyncStorage.setItem('yun:lastReadDate', today);
+      await AsyncStorage.setItem('yun:readCountToday', String(readCountToday + 1));
+      
       setScreen('reading');
     } catch {
       Alert.alert('Calculation Error', 'Could not generate report. Please verify your profile fields.');
@@ -259,6 +272,23 @@ const connectWallet = async () => {
       await Share.share({ message: text, title: reading.title });
     } catch {
       Alert.alert('Share Failed', 'Could not share report right now.');
+    }
+  };
+
+  // Donate via Solana wallet
+  const donate = async () => {
+    try {
+      const donationAddress = 'yunseeker.sol'; // Placeholder
+      const solanaUri = `solana:${donationAddress}?amount=0.1&label=yun-seeker+donation`;
+      const canOpen = await Linking.canOpenURL(solanaUri);
+      if (canOpen) {
+        await Linking.openURL(solanaUri);
+        Alert.alert('Thank You!', 'Your donation helps keep yun-seeker running! 🧡');
+      } else {
+        Alert.alert('Donation', `Support us by sending SOL to: ${donationAddress}`);
+      }
+    } catch {
+      Alert.alert('Donation', 'Thank you for your support!');
     }
   };
 
@@ -311,7 +341,7 @@ const connectWallet = async () => {
       {screen === 'profileConfirm' && <ProfileConfirmScreen profile={activeProfile} onConfirm={saveProfileNow} onEdit={() => setScreen('profile')} t={I18N[language]} />}
       {screen === 'dashboard' && <DashboardScreen profile={activeProfile} history={history} onAsk={() => setScreen('questions')} onEdit={() => setScreen('profile')} onOpenHistory={(r) => { setReading(r); setScreen('reading'); }} t={I18N[language]} language={language} />}
       {screen === 'questions' && <QuestionsScreen selectedQuestion={selectedQuestion} setSelectedQuestion={setSelectedQuestion} customQuestion={customQuestion} setCustomQuestion={setCustomQuestion} onGenerate={runCalculation} t={I18N[language]} language={language} />}
-      {screen === 'reading' && <ReadingScreen reading={reading} onShare={shareReading} onAskAgain={() => setScreen('questions')} onBack={() => setScreen('dashboard')} t={I18N[language]} language={language} />}
+      {screen === 'reading' && <ReadingScreen reading={reading} onShare={shareReading} onDonate={donate} onAskAgain={() => setScreen('questions')} onBack={() => setScreen('dashboard')} t={I18N[language]} language={language} />}
 
       <View style={styles.footerNav}>
         {isSignedIn && (
