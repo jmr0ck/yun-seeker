@@ -227,10 +227,11 @@ const connectWallet = async () => {
       // Show loading
       Alert.alert('🔮 運行者開示中...', '大師正在為你推算，請稍候...');
       
-      // Use AI-powered reading (Final Boss quality!)
-      const aiReading = await generateAIReading(birthData, q, language);
+      try {
+        // Use AI-powered reading (Final Boss quality!)
+        const aiReading = await generateAIReading(birthData, q, language);
 
-      const report: ReadingResult = {
+        const report: ReadingResult = {
         title: aiReading.title,
         summary: aiReading.summary,
         data: {
@@ -256,6 +257,9 @@ const connectWallet = async () => {
       await AsyncStorage.setItem('yun:readCountToday', String(readCountToday + 1));
       
       setScreen('reading');
+      } catch (err: any) {
+        Alert.alert('Error', 'AI failed: ' + (err?.message || 'Unknown error'));
+      }
     } catch {
       Alert.alert('Calculation Error', 'Could not generate report. Please verify your profile fields.');
     }
